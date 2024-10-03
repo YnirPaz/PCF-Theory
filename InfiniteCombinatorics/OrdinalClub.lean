@@ -11,10 +11,20 @@ open Classical Cardinal Set Order Filter
 
 namespace Ordinal
 
+-- Small.{u} → Small.{max u v} isn't properly synthed, so this instance is required.
 instance {o : Ordinal.{u}} : Small.{max u v} (Iio o) := small_lift (Iio o)
 
-def IsClub (S : Set Ordinal) (o : Ordinal) : Prop :=
-  IsClosed S o ∧ IsAcc o S
+/-- A set of ordinals is a club below an ordinal if it is closed and unbounded in it. -/
+def IsClub (C : Set Ordinal) (o : Ordinal) : Prop :=
+  IsClosed C o ∧ IsAcc o C
+
+theorem IsClub.inter_Iio {o : Ordinal} {C : Set Ordinal} (h : o.IsClub C) : -- ugly proof
+    o.IsClub (C ∩ (Iio o)) := by
+  constructor
+  · exact fun p plt hp ↦ ⟨h.1 p plt (hp.subset inter_subset_left), plt⟩
+  · exact ⟨h.2.1, fun p plt ↦ (h.2.2 p plt).casesOn fun x hx ↦
+      ⟨x, ⟨⟨hx.1, hx.2.2⟩, hx.2.1, hx.2.2⟩⟩⟩
+
 
 section ClubIntersection
 
@@ -150,3 +160,14 @@ theorem isClub_iInter [Nonempty ι] (hCof : ℵ₀ < o.cof) (hf : ∀ i, IsClub 
   have : range f = range f' :=
     Set.ext fun x ↦ ⟨fun ⟨i, hi⟩ ↦ ⟨⟨i⟩, hi⟩, fun ⟨⟨i⟩, hi⟩ ↦ ⟨i, hi⟩⟩
   unfold iInter iInf; rw [this]
+
+end ClubIntersection
+
+
+/-- A set of ordinals is stationary below an ordinal if it intersects every club of it. -/
+def IsStationary (S : Set Ordinal) (o : Ordinal) : Prop :=
+  ∀ C, IsClub C o → (S ∩ C).Nonempty
+
+theorem IsStationary.inter_club_below {o : Ordinal} {S C : Set Ordinal} (hS : o.IsStationary S)
+    (hC : o.IsClub C) : (S ∩ C ∩ (Iio o)).Nonempty :=
+  (inter_assoc _ _ _) ▸ (hS _ hC.inter_Iio)
