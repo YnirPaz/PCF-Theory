@@ -23,8 +23,21 @@ theorem IsAcc.isLimit {o : Ordinal} {S : Set Ordinal} (h : o.IsAcc S) : IsLimit 
   rcases h.2 x (lt_of_lt_of_le (lt_succ x) hx.symm.le) with ⟨p, hp⟩
   exact (hx.symm ▸ (succ_le_iff.mpr hp.2.1)).not_lt hp.2.2
 
-theorem IsAcc.inter_Ioo_nonempty {o : Ordinal} {S : Set Ordinal} (hS : o.IsAcc S)
-    {p : Ordinal} (hp : p < o) : (S ∩ Ioo p o).Nonempty := hS.2 p hp
+theorem IsAcc.inter_Ioo_nonempty {o : Ordinal} {S : Set Ordinal} (h : o.IsAcc S)
+    {p : Ordinal} (hp : p < o) : (S ∩ Ioo p o).Nonempty := h.2 p hp
+
+-- not contributed
+theorem IsAcc.inter_Ioi {o p : Ordinal} {S : Set Ordinal} (hp : p < o) (h : o.IsAcc S) :
+    o.IsAcc (S ∩ Ioi p) := by
+  use h.1
+  intro q qlt
+  obtain ⟨x, hx⟩ := h.2 (max p q) (max_lt hp qlt)
+  use x
+  refine ⟨⟨hx.1, (max_lt_iff.mp hx.2.1).1⟩, (max_lt_iff.mp hx.2.1).2, hx.2.2⟩
+
+-- not contributed
+theorem IsClosed.mem_of_isAcc {o p : Ordinal} {S : Set Ordinal} (h : o.IsClosed S) :
+    p < o → p.IsAcc S → p ∈ S := fun plt hp ↦ h p plt hp
 
 theorem isClosed_zero (S : Set Ordinal) : IsClosed S 0 := fun _ h ↦
   False.elim <| (Ordinal.zero_le _).not_lt h

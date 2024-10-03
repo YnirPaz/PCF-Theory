@@ -163,6 +163,31 @@ theorem isClub_iInter [Nonempty ι] (hCof : ℵ₀ < o.cof) (hf : ∀ i, IsClub 
 
 end ClubIntersection
 
+/-- TODO: write me! -/
+def diagInter {o : Ordinal} (c : Iio o → Set Ordinal) : Set Ordinal :=
+  {p | ∀ r : Iio o, r < p → p ∈ c r}
+
+prefix:110 "Δ " => diagInter
+
+theorem mem_diagInter {o x : Ordinal} {c : Iio o → Set Ordinal} :
+    x ∈ Δ c ↔ ∀ r : Iio o, r < x → x ∈ c r := Iff.rfl
+
+theorem diagInter_Ioi_subset {o : Ordinal} (r : Iio o) (c : Iio o → Set Ordinal) :
+    Δ c ∩ Ioi r.1 ⊆ c r :=
+  fun _ h ↦ h.1 r h.2
+
+section DiagonalIntersection
+
+variable {o : Ordinal} {c : Iio o → Set Ordinal}
+
+theorem isClosed_diagInter (h : ∀ r, o.IsClosed (c r)) : o.IsClosed (Δ c) := by
+  intro p plt hp r rlt
+  apply (h r).mem_of_isAcc plt
+  apply IsAcc.subset (diagInter_Ioi_subset r c)
+  exact hp.inter_Ioi rlt
+
+end DiagonalIntersection
+
 
 /-- A set of ordinals is stationary below an ordinal if it intersects every club of it. -/
 def IsStationary (S : Set Ordinal) (o : Ordinal) : Prop :=
