@@ -8,16 +8,16 @@ noncomputable section
 
 universe u v
 
-open Classical Cardinal Set Order Filter
+open Classical Cardinal Ordinal Set Order Filter
 
 namespace Ordinal
-
--- Small.{u} → Small.{max u v} isn't properly synthed, so this instance is required.
-instance {o : Ordinal.{u}} : Small.{max u v} (Iio o) := small_lift (Iio o)
 
 /-- A set of ordinals is a club below an ordinal if it is closed and unbounded in it. -/
 def IsClub (C : Set Ordinal) (o : Ordinal) : Prop :=
   IsClosed C o ∧ IsAcc o C
+
+theorem IsClub.mem_of_isAcc {o p : Ordinal} {C : Set Ordinal} (h : o.IsClub C) :
+    p < o → p.IsAcc C → p ∈ C := fun plt hp ↦ h.1 p plt hp
 
 theorem IsClub.inter_Iio {o : Ordinal} {C : Set Ordinal} (h : o.IsClub C) : -- ugly proof
     o.IsClub (C ∩ (Iio o)) := by
@@ -90,6 +90,7 @@ theorem exists_omega_seq_succ_prop (opos : 0 < o) {P : Ordinal.{u} → Ordinal.{
   simp [f]
   exact lt_succ r.1
 
+-- TODO: generalize to above any ordinal instead.
 theorem exists_omega_seq_succ_prop_pos (opos : 1 < o) {P : Ordinal.{u} → Ordinal.{u} → Prop}
     (hP : ∀ p : Iio o, 0 < p.1 → ∃ q, (p < q ∧ P p q)) (r : Iio o) : ∃ f : (Iio ω) → Iio o,
     (∀ i, P (f i) (f ⟨succ i, omega_isLimit.2 i i.2⟩)) ∧ StrictMono f
@@ -170,8 +171,8 @@ theorem IsClub.sInter (hCof : ℵ₀ < o.cof) (hS : ∀ C ∈ S, IsClub C o) (hS
     · exact suplt
 
 theorem IsClub.iInter_lift {ι : Type v} {f : ι → Set Ordinal.{u}} [Nonempty ι] (hCof : ℵ₀ < o.cof)
-    (hf : ∀ i, IsClub (f i) o)
-    (ιCard : Cardinal.lift.{u} #ι < Cardinal.lift.{v} o.cof) : IsClub (⋂ i, f i) o := by
+    (hf : ∀ i, IsClub (f i) o) (ιCard : Cardinal.lift.{u} #ι < Cardinal.lift.{v} o.cof) :
+    IsClub (⋂ i, f i) o := by
   refine IsClub.sInter (S := range f) hCof (fun y ⟨x, hx⟩ ↦ hx ▸ hf x) (range_nonempty f) ?_
   have := mk_range_le_lift (f := f)
   rw [← Cardinal.lift_lt.{_, max v (u + 1)}]
@@ -185,23 +186,12 @@ theorem IsClub.iInter_lift {ι : Type v} {f : ι → Set Ordinal.{u}} [Nonempty 
   · rw [Cardinal.lift_lift, Cardinal.lift_umax.{v, u + 1}]
   · rw [Cardinal.lift_lift, Cardinal.lift_lift]
 
-
-
--- TODO: review, old code
-theorem IsClub.iInter [Nonempty ι] (hCof : ℵ₀ < o.cof) (hf : ∀ i, IsClub (f i) o) -- prove with lift!
-    (ιCard : #ι < o.cof) : IsClub (⋂ i, f i) o := by
-  let f' : ULift.{u + 1, u} ι → Set Ordinal.{u} := fun ⟨i⟩ ↦ f i
-  have rangelt : #(range f') < Cardinal.lift.{u + 1, u} o.cof :=
-    lt_of_le_of_lt (@mk_range_le _ _ f') ((mk_uLift _) ▸ (Cardinal.lift_lt.mpr ιCard))
-  have clubRange : ∀ C ∈ (range f'), IsClub C o := fun C ⟨⟨i⟩, hi⟩ ↦ hi ▸ hf i
-  have intClub := IsClub.sInter hCof clubRange (range_nonempty f') rangelt
-  rw [sInter_range] at intClub
-  convert intClub
-  have : range f = range f' :=
-    Set.ext fun x ↦ ⟨fun ⟨i, hi⟩ ↦ ⟨⟨i⟩, hi⟩, fun ⟨⟨i⟩, hi⟩ ↦ ⟨i, hi⟩⟩
-  unfold iInter iInf; rw [this]
+theorem IsClub.iInter [Nonempty ι] (hCof : ℵ₀ < o.cof) (hf : ∀ i, IsClub (f i) o)
+    (ιCard : #ι < o.cof) : IsClub (⋂ i, f i) o :=
+  IsClub.iInter_lift hCof hf (Cardinal.lift_lt.mpr ιCard)
 
 end ClubIntersection
+
 
 /-- TODO: write me! -/
 def diagInter {o : Ordinal} (c : Iio o → Set Ordinal) : Set Ordinal :=
@@ -228,17 +218,48 @@ theorem isClosed_diagInter {o : Ordinal} {c : Iio o → Set Ordinal} (h : ∀ r,
 theorem isAcc_diagInter {κ : Cardinal.{u}} (hκ : ℵ₀ < κ) (hreg : κ.IsRegular)
     {c : Iio κ.ord → Set Ordinal} (hc : ∀ r, IsClub (c r) κ.ord) : IsAcc κ.ord (Δ c) := by
   refine ⟨(ord_zero ▸ ord_strictMono (aleph0_pos.trans hκ)).ne.symm, ?_⟩
-  let P : Ordinal.{u} → Ordinal → Prop := fun p q ↦ ∀ r : Iio κ.ord, r.1 < q → q ∈ c r
+  let P : Ordinal.{u} → Ordinal → Prop := fun p q ↦ ∀ r : Iio κ.ord, r.1 < p → q ∈ c r
   have auxP : ∀ r : Iio κ.ord, 0 < r.1 → ∃ s, (r < s ∧ P r s) := by
     intro r hr
-    haveI : (Iio r.1).Nonempty := sorry
+    haveI : ↑(Iio r.1).Nonempty := ⟨0, hr⟩
     let C : Set Ordinal := ⋂ s : Iio r.1, c ⟨s.1, have : s.1 < r.1 := s.2
       this.trans (r.2 : r.1 < κ.ord)⟩
     have : IsClub C κ.ord := by
-      dsimp [C]
-      have := @IsClub.iInter κ.ord (Iio r.1)
+      refine @IsClub.iInter_lift κ.ord (Iio r.1)
+        (fun s ↦ c ⟨s.1, have : s.1 < r.1 := s.2; this.trans (r.2 : r.1 < κ.ord)⟩) this.to_subtype
+        (hreg.cof_eq.symm ▸ hκ)
+        (fun s ↦ hc ⟨s.1, (LT.lt.trans s.2 r.2 : s.1 < κ.ord)⟩)
+        ?_
+      · change Cardinal.lift #{x | x < _} < _
+        rw [mk_initialSeg, Cardinal.lift_lift, Cardinal.lift_lt, hreg.cof_eq, ← lt_ord]
+        exact r.2
+    obtain ⟨x, hx⟩ := this.2.inter_Ioo_nonempty r.2
+    use ⟨x, hx.2.2⟩
+    constructor
+    · exact hx.2.1
+    · exact fun s slt ↦ mem_iInter.mp hx.1 ⟨s.1, slt⟩
+  intro p plt
+  obtain ⟨f, hf⟩ := exists_omega_seq_succ_prop_pos.{u, u} (one_lt_omega.trans (lt_ord.mpr hκ))
+    auxP ⟨p, plt⟩
+  use ⨆ i, f i
+  have ltκ : ⨆ i, (f i).1 < κ.ord := by
+    refine iSup_lt_ord' ?_ fun i ↦ (f i).2
+    change Cardinal.lift #{x | x < _} < _ -- TODO: remove once #16929 merges
+    rwa [mk_initialSeg, Cardinal.lift_lift, Cardinal.lift_lt, card_omega, hreg.cof_eq]
+  constructor
+  · intro r hr
+    rw [Ordinal.lt_iSup'] at hr
+    obtain ⟨n, hn⟩ := hr
+    apply (hc r).mem_of_isAcc ltκ
 
-  sorry
+  · constructor
+    · rw [Ordinal.lt_iSup']
+      exact ⟨⟨0, omega_pos⟩, hf.2.2⟩
+    · exact ltκ
+
+
+
+
 
 end DiagonalIntersection
 

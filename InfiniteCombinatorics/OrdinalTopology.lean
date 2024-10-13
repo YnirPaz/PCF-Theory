@@ -1,11 +1,16 @@
 import Mathlib
 import InfiniteCombinatorics.OrdinalArithmetic
+import InfiniteCombinatorics.OrdinalBasic
 
-universe u
+universe u v
+
+open Set Order
 
 namespace Ordinal
 
-open Set Order
+-- Small.{u} → Small.{max u v} isn't properly synthed, so this instance is required.
+instance {o : Ordinal.{u}} : Small.{max u v} (Iio o) := small_lift (Iio o)
+
 
 -- #16710
 
@@ -49,5 +54,30 @@ theorem IsClosed.sInter {o : Ordinal} {S : Set (Set Ordinal)} (h : ∀ C ∈ S, 
 theorem IsClosed.iInter {ι : Type u} {f : ι → Set Ordinal} {o : Ordinal}
     (h : ∀ i, IsClosed (f i) o) : IsClosed (⋂ i, f i) o :=
   IsClosed.sInter fun _ ⟨i, hi⟩ ↦ hi ▸ (h i)
+
+-- not contributed
+theorem blahblah {o : Ordinal.{u}} {f : Iio o → Ordinal.{max u v}} {S : Set Ordinal} (ho : o.IsLimit)
+    (hf : StrictMono f) (h : ∃ r, ∀ t, r < t → f t ∈ S) : (⨆ i, f i).IsAcc S := by
+  constructor
+  · rw [← Ordinal.pos_iff_ne_zero, Ordinal.lt_iSup']
+    use ⟨1, ho.one_lt⟩
+    have : f ⟨0, ho.pos⟩ < f ⟨1, ho.one_lt⟩ := hf (Subtype.mk_lt_mk.mpr zero_lt_one)
+    exact Ordinal.pos_of_gt this
+  · intro p plt
+    rw [Ordinal.lt_iSup'] at plt
+    obtain ⟨q, hq⟩ := plt
+    obtain ⟨r, hr⟩ := h
+    have lto : max r.1 q.1 + 1 < o := sorry
+    specialize hr ⟨max r.1 q.1 + 1, lto⟩ sorry
+    use f ⟨max r.1 q.1 + 1, lto⟩
+    refine ⟨hr, ⟨?_, ?_⟩⟩
+    · sorry
+    · rw [Ordinal.lt_iSup']
+      use ⟨max r.1 q.1 + 2, sorry⟩
+      apply hf
+      rw [Subtype.mk_lt_mk]
+      sorry
+
+
 
 end Ordinal
