@@ -1,80 +1,104 @@
-import Mathlib
-import InfiniteCombinatorics.OrdinalTopology
+/-
+Copyright (c) 2024 Nir Paz. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Nir Paz
+-/
+import Mathlib.SetTheory.Cardinal.Cofinality
+import Mathlib.SetTheory.Ordinal.Topology
 import InfiniteCombinatorics.OrdinalArithmetic
-import InfiniteCombinatorics.OrdinalBasic
+import InfiniteCombinatorics.OrdinalTopology
 import InfiniteCombinatorics.CardinalCofinality
+
+/-!
+# Club and stationary sets
+
+This file sets up the basic theory of clubs (closed and unbounded sets) and stationary sets.
+
+## Main definitions
+
+* `Ordinal.IsClosed`: A set of ordinals `S` is closed in `o` if `S ⊆ Iio o`
+  and `S` contains every `x < o` such that `x.IsAcc S`.
+* `Ordinal.IsClub`: A set of ordinals `S` is a club in `o` if
+  it is closed in `o` and unbounded in `o`.
+
+## Main results
+
+* `isClub_sInter`: The intersection of fewer than `o.cof` clubs in `o` is a club in `o`.
+-/
 
 noncomputable section
 
-universe u v
+open Classical Cardinal Set Order Filter
 
-open Classical Cardinal Ordinal Set Order Filter
+universe u v
 
 namespace Ordinal
 
 /-- A set of ordinals is a club below an ordinal if it is closed and unbounded in it. -/
 def IsClub (C : Set Ordinal) (o : Ordinal) : Prop :=
-  IsClosed C o ∧ IsAcc o C
+  IsClosedBelow C o ∧ IsAcc o C
 
-theorem IsClub.mem_of_isAcc {o p : Ordinal} {C : Set Ordinal} (h : o.IsClub C) :
-    p < o → p.IsAcc C → p ∈ C := fun plt hp ↦ h.1 p plt hp
-
-theorem IsClub.inter_Iio {o : Ordinal} {C : Set Ordinal} (h : o.IsClub C) : -- ugly proof
-    o.IsClub (C ∩ (Iio o)) := by
-  constructor
-  · exact fun p plt hp ↦ ⟨h.1 p plt (hp.subset inter_subset_left), plt⟩
-  · exact ⟨h.2.1, fun p plt ↦ (h.2.2 p plt).casesOn fun x hx ↦
-      ⟨x, ⟨⟨hx.1, hx.2.2⟩, hx.2.1, hx.2.2⟩⟩⟩
-
+theorem isClub_iff {C : Set Ordinal} {o : Ordinal} : IsClub C o
+    ↔ ((∀ p < o, IsAcc p C → p ∈ C) ∧ (o ≠ 0 ∧ ∀ p < o, (C ∩ Ioo p o).Nonempty)) :=
+  and_congr isClosedBelow_iff (isAcc_iff _ _)
 
 section ClubIntersection
 
 variable {o : Ordinal.{u}} {S : Set (Set Ordinal)}
 variable {ι : Type u} {f : ι → Set Ordinal}
 
-theorem exists_above_of_lt_cof {p : Ordinal} (h : p < o) (hS : Nonempty S)
-    (hSacc : ∀ s ∈ S, o.IsAcc s) (hScard : #S < Cardinal.lift.{u + 1, u} o.cof) :
+/-- Given less than `o.cof` unbounded sets in `o` and some `q < o`, there is a `q < p < o`
+  such that `Ioo q p` contains an element of every unbounded set. -/
+theorem exists_above_of_lt_cof {p : Ordinal} (h : p < o) (hSemp : Nonempty S)
+    (hSacc : ∀ U ∈ S, o.IsAcc U) (hScard : #S < Cardinal.lift.{u + 1, u} o.cof) :
     ∃ q < o, p < q ∧ ∀ U ∈ S, (U ∩ Ioo p q).Nonempty := by
-  haveI : Small.{u, u + 1} S := by
-    rw [small_iff_lift_mk_lt_univ, Cardinal.lift_id]
-    exact hScard.trans <| lift_lt_univ o.cof
-  obtain ⟨s, hs⟩ := hS
-  have infMem := csInf_mem <| (hSacc s hs).inter_Ioo_nonempty h
-  let f : S → Ordinal := fun s ↦ sInf (s ∩ (Ioo p o))
-  use iSup f + 1
-  refine ⟨?_, ?_, ?_⟩
-  · apply (hSacc s hs).isLimit.succ_lt
-    apply Ordinal.iSup_lt_ord'
-    convert hScard
-    · exact Cardinal.lift_id'.{u, u + 1} #S
-    · intro s
-      have := csInf_mem <| (hSacc s.1 s.2).inter_Ioo_nonempty h
-      exact this.2.2
-  · refine lt_trans ?_ (lt_succ _)
-    rw [Ordinal.lt_iSup']
-    use ⟨s, hs⟩
-    exact infMem.2.1
-  · intro s hs
-    use sInf (s ∩ (Ioo p o))
-    constructor
-    · refine mem_of_mem_inter_left (csInf_mem ?_)
-      exact (hSacc s hs).inter_Ioo_nonempty h
-    · constructor
-      · have := csInf_mem <| (hSacc s hs).inter_Ioo_nonempty h
-        exact this.2.1
-      · refine lt_of_le_of_lt ?_ (lt_succ _)
-        exact Ordinal.le_iSup' f ⟨s, hs⟩
+  rw [lift_cof] at hScard
+  have oLim : IsLimit o := hSemp.casesOn fun ⟨T, hT⟩ ↦ (hSacc T hT).isLimit
+  let f : ↑S → Ordinal := fun U ↦ lift.{u + 1, u} (sInf (U ∩ (Ioo p o)))
+  have infMem : ∀ U : S, sInf (↑U ∩ Ioo p o) ∈ ↑U ∩ Ioo p o := fun U ↦
+    csInf_mem ((hSacc U.1 U.2).inter_Ioo_nonempty h : (↑U ∩ Ioo p o).Nonempty)
+  have flto : ∀ U : S, f U < lift.{u + 1, u} o := fun U ↦ by
+    simp_all only [mem_inter_iff, mem_Ioo, lift_lt, f]
+  set q := (iSup f) + 1 with qdef
+  have qlto : q < lift.{u + 1, u} o :=
+    ((lift_isLimit.{u + 1, u} o).mpr oLim).2 (iSup f) (iSup_lt_ord hScard flto)
+  rcases mem_range_lift_of_le qlto.le with ⟨q', hq'⟩
+  use q', lift_lt.mp (hq' ▸ qlto)
+  have fltq : ∀ U, f U < q := fun U ↦ by
+    convert lt_of_le_of_lt (le_ciSup (by apply bddAbove_of_small) U) (qdef ▸ lt_add_one (iSup f))
+  constructor <;> try constructor
+  · rcases hSemp with ⟨U, hU⟩
+    have pltf : lift.{u + 1, u} p < f ⟨U, hU⟩ :=
+      lift_lt.mpr (mem_of_mem_inter_right (infMem ⟨U, hU⟩)).1
+    have := lt_of_lt_of_le pltf (fltq ⟨U, hU⟩).le
+    rwa [← hq', lift_lt] at this
+  intro U hU
+  specialize infMem ⟨U, hU⟩
+  specialize fltq ⟨U, hU⟩
+  have : f ⟨U, hU⟩ ∈ Ioo (lift.{u + 1, u} p) q := ⟨lift_lt.mpr infMem.2.1, fltq⟩
+  rw [← hq'] at fltq
+  rcases mem_range_lift_of_le fltq.le with ⟨fUdown, fUlift⟩
+  use fUdown
+  constructor
+  · simp_all only [lift_inj, mem_inter_iff, f]
+  · exact ⟨lift_lt.mp <| fUlift ▸ (this.1), lift_lt.mp (hq'.symm ▸ (fUlift ▸ this).2)⟩
 
-theorem exists_omega_seq_succ_prop (opos : 0 < o) {P : Ordinal.{u} → Ordinal.{u} → Prop}
+/--
+Given a limit ordinal `o` and a property on pairs of ordinals `P`, such that
+for any `p < o` there is a `q < o` above `p` so that `P p q`, we can construct
+an increasing `ω`-sequence below `o` that satisfies `P` between every 2 consecutive elements.
+Additionaly, the sequence can begin arbitrarily high in `o`. That is, above any `r < o`.
+-/
+theorem exists_omega_seq_succ_prop (opos : 0 < o) {P : Ordinal → Ordinal → Prop}
     (hP : ∀ p : Iio o, ∃ q, (p < q ∧ P p q)) (r : Iio o) : ∃ f : (Iio ω) → Iio o,
-    (∀ i, P (f i) (f ⟨succ i, omega_isLimit.2 i i.2⟩)) ∧ StrictMono f
-    ∧ r < f ⟨0, omega_pos⟩ := by
+    (∀ i, P (f i) (f ⟨i + 1, isLimit_omega0.2 i i.2⟩)) ∧ (∀ i j, (i < j) → f i < f j)
+    ∧ r < f ⟨0, omega0_pos⟩ := by
   have oLim : o.IsLimit := ⟨opos.ne.symm, fun a alto ↦ (hP ⟨a, alto⟩).casesOn fun r hr ↦
-  lt_of_le_of_lt (succ_le_of_lt hr.1) r.2⟩
+    lt_of_le_of_lt (succ_le_of_lt hr.1) r.2⟩
   let H₂ : (p : Iio ω) → (Iio o) → (Iio o) := fun _ fp ↦ choose (hP fp)
   let H₃ : (w : Iio ω) → IsLimit w → ((o' : Iio ω) → o' < w → (Iio o)) → (Iio o) :=
     fun w _ _ ↦ ⟨0, oLim.pos⟩
-  let f : Iio ω → Iio o := fun n ↦ @boundedLimitRecOn ω omega_isLimit (fun _ ↦ Iio o) n
+  let f : Iio ω → Iio o := fun x ↦ @boundedLimitRecOn ω isLimit_omega0 (fun _ ↦ Iio o) x
     ⟨r + 1, oLim.succ_lt r.2⟩ H₂ H₃
   use f
   constructor <;> try constructor
@@ -82,7 +106,7 @@ theorem exists_omega_seq_succ_prop (opos : 0 < o) {P : Ordinal.{u} → Ordinal.{
     simp [f, H₂]
     generalize_proofs _ pf
     exact (choose_spec pf).2
-  · have aux : ∀ i, f i < f ⟨i + 1, omega_isLimit.2 i i.2⟩ := fun i ↦ by
+  · have aux : ∀ i, f i < f ⟨i + 1, isLimit_omega0.2 i i.2⟩ := fun i ↦ by
       simp [f, H₂]
       generalize_proofs _ pf
       exact (choose_spec pf).casesOn fun h _ ↦ h
@@ -90,27 +114,30 @@ theorem exists_omega_seq_succ_prop (opos : 0 < o) {P : Ordinal.{u} → Ordinal.{
   simp [f]
   exact lt_succ r.1
 
--- TODO: generalize to above any ordinal instead.
-theorem exists_omega_seq_succ_prop_pos (opos : 1 < o) {P : Ordinal.{u} → Ordinal.{u} → Prop}
-    (hP : ∀ p : Iio o, 0 < p.1 → ∃ q, (p < q ∧ P p q)) (r : Iio o) : ∃ f : (Iio ω) → Iio o,
-    (∀ i, P (f i) (f ⟨succ i, omega_isLimit.2 i i.2⟩)) ∧ StrictMono f
-    ∧ r < f ⟨0, omega_pos⟩ := by
-  let P' : Ordinal.{u} → Ordinal → Prop := fun p q ↦ p = 0 ∨ P p q
-  have auxP' : ∀ p : Iio o, ∃ q, (p < q ∧ P' p q) := by
-    intro p
+theorem exists_omega_seq_succ_prop_pos (onelto : 1 < o) {P : Ordinal → Ordinal → Prop}
+    (hP : ∀ p : Iio o, 0 < p.1 → ∃ q : Iio o, (p < q ∧ P p q)) (r : Iio o) :
+    ∃ f : (Iio ω : Set Ordinal.{0}) → (Iio o), (∀ i, P (f i) (f ⟨i + 1, isLimit_omega0.2 i i.2⟩))
+    ∧ (∀ i j, (i < j) → f i < f j) ∧ r < f ⟨0, omega0_pos⟩ := by
+  let P' : Ordinal → Ordinal → Prop := fun p q ↦ p = 0 ∨ P p q
+  have hP' : ∀ p : Iio o, ∃ q : Iio o, (p < q ∧ P' p q) := fun p ↦ by
     by_cases h : p.1 = 0
-    · exact ⟨⟨1, opos⟩, (h ▸ (lt_one_iff_zero.mpr rfl) : p.1 < 1), Or.inl h⟩
-    obtain ⟨q, hq⟩ := hP p (Ordinal.pos_iff_ne_zero.mpr h)
-    exact ⟨q, hq.1, Or.inr hq.2⟩
-  obtain ⟨s, hs⟩ := exists_omega_seq_succ_prop (zero_lt_one.trans opos) auxP' r
-  use s
-  refine ⟨fun i ↦ (hs.1 i).resolve_left ?_, hs.2⟩
-  by_cases h : i.1 = 0
-  · have := (Ordinal.pos_of_gt (hs.2.2)).ne.symm
-    simp_rw [← h] at this
-    exact this
-  · refine (Ordinal.pos_of_gt (hs.2.1 (?_ : ⟨0, omega_pos⟩ < i))).ne.symm
-    exact Ordinal.pos_iff_ne_zero.mpr h
+    · use ⟨1, onelto⟩
+      use (by change p.1 < 1; exact h ▸ zero_lt_one)
+      exact Or.inl h
+    convert hP p (Ordinal.pos_iff_ne_zero.mpr h) using 1
+    simp_all only [false_or, P']
+  rcases exists_omega_seq_succ_prop (zero_lt_one.trans onelto) hP' r with ⟨f, hf⟩
+  use f
+  refine ⟨fun i ↦ ?_, hf.2⟩
+  have := hf.1 i
+  have rltf0 := hf.2.2
+  by_cases hi' : i.1 = 0
+  · refine this.resolve_left ?_
+    convert (LT.lt.bot_lt rltf0 : (0 : Ordinal) < _).ne.symm
+  · refine this.resolve_left ?_
+    have aux' : (0 : Ordinal) < _ := LT.lt.bot_lt (hf.2.1 ⟨0, omega0_pos⟩ i
+      (Ordinal.pos_iff_ne_zero.mpr hi'))
+    exact aux'.ne.symm
 
 /-- If between every 2 consecutive elements of a weakly increasing `δ`-sequence
   there is an element of `C`, and `δ` is a limit ordinal,
@@ -119,24 +146,28 @@ theorem isAcc_iSup_of_between {δ : Ordinal.{u}} (C : Set Ordinal) (δLim : δ.I
     (s : Iio δ → Ordinal.{max u v}) (sInc : ∀ o, s o < s ⟨succ o, δLim.succ_lt o.2⟩)
     (h : ∀ o, (C ∩ (Ioo (s o) (s ⟨succ o, δLim.succ_lt o.2⟩))).Nonempty) :
     IsAcc (iSup s) C := by
+  rw [isAcc_iff]
   constructor
-  · rw [← Ordinal.pos_iff_ne_zero, Ordinal.lt_iSup']
+  · rw [← Ordinal.pos_iff_ne_zero, Ordinal.lt_iSup_iff]
     use ⟨1, δLim.one_lt⟩
     refine lt_of_le_of_lt (Ordinal.zero_le (s ⟨0, δLim.pos⟩)) ?_
     convert sInc ⟨0, δLim.pos⟩
     exact succ_zero.symm
   intro p hp
-  rw [Ordinal.lt_iSup'] at hp
+  rw [Ordinal.lt_iSup_iff] at hp
   obtain ⟨r, hr⟩ := hp
   obtain ⟨q, hq⟩ := h r
   use q
   refine ⟨hq.1, ⟨hr.trans hq.2.1, ?_⟩⟩
-  rw [Ordinal.lt_iSup']
+  rw [Ordinal.lt_iSup_iff]
   exact ⟨⟨r.1 + 1, δLim.succ_lt r.2⟩, hq.2.2⟩
 
+/--
+The intersection of less than `o.cof` clubs in `o` is a club in `o`.
+-/
 theorem IsClub.sInter (hCof : ℵ₀ < o.cof) (hS : ∀ C ∈ S, IsClub C o) (hSemp : S.Nonempty)
     (Scard : #S < Cardinal.lift.{u + 1, u} o.cof) : IsClub (⋂₀ S) o := by
-  refine ⟨IsClosed.sInter (fun C CmemS ↦ (hS C CmemS).1), ?_⟩
+  refine ⟨IsClosedBelow.sInter (fun C CmemS ↦ (hS C CmemS).1), (isAcc_iff _ _).mpr ?_⟩
   have nonemptyS : Nonempty S := hSemp.to_subtype
   have oLim : IsLimit o := aleph0_le_cof.mp hCof.le
   use oLim.pos.ne.symm
@@ -146,28 +177,33 @@ theorem IsClub.sInter (hCof : ℵ₀ < o.cof) (hS : ∀ C ∈ S, IsClub C o) (hS
     rcases exists_above_of_lt_cof p.2 nonemptyS (fun U hU ↦ (hS U hU).2) Scard with ⟨q, hq⟩
     use ⟨q, hq.1⟩, hq.2.1, hq.2.2
   rcases exists_omega_seq_succ_prop.{u, u} oLim.pos auxP ⟨p, plto⟩ with ⟨f, hf⟩
-  -- SupSet (Iio o)?
   let sup := iSup (fun n ↦ (f n).1)
   use sup
   have suplt : sup < o := by
     apply iSup_lt_ord'
-    · change Cardinal.lift #{p | p < ω} < _
-      rw [mk_initialSeg, card_omega, lift_aleph0, lift_aleph0]
+    · rw [mk_Iio_ordinal, card_omega0, lift_aleph0, lift_aleph0]
       exact aleph0_lt_lift.mpr hCof
     intro n
     exact (f n).2
   constructor
   · intro s hs
-    apply (hS s hs).1 sup suplt
+    apply (hS s hs).1.forall_lt sup suplt
     apply isAcc_iSup_of_between
     · intro n
-      exact hf.2.1 (lt_succ n.1)
+      rw [@Subtype.coe_lt_coe]
+      convert hf.2.1 n (succ n) ?_
+      · rw [coe_succ_of_mem]
+        exact isLimit_omega0.succ_lt n.2
+      · apply Subtype.coe_lt_coe.mp
+        rw [coe_succ_of_mem]
+        · exact lt_succ n.1
+        exact isLimit_omega0.succ_lt n.2
     · intro n
       exact hf.1 n s hs
-    · exact omega_isLimit
+    · exact isLimit_omega0
   · constructor
-    · rw [Ordinal.lt_iSup']
-      exact ⟨⟨0, omega_pos⟩, hf.2.2⟩
+    · rw [Ordinal.lt_iSup_iff]
+      exact ⟨⟨0, omega0_pos⟩, hf.2.2⟩
     · exact suplt
 
 theorem IsClub.iInter_lift {ι : Type v} {f : ι → Set Ordinal.{u}} [Nonempty ι] (hCof : ℵ₀ < o.cof)
@@ -192,8 +228,6 @@ theorem IsClub.iInter [Nonempty ι] (hCof : ℵ₀ < o.cof) (hf : ∀ i, IsClub 
 
 end ClubIntersection
 
-
-/-- TODO: write me! -/
 def diagInter {o : Ordinal} (c : Iio o → Set Ordinal) : Set Ordinal :=
   {p | ∀ r : Iio o, r < p → p ∈ c r}
 
@@ -208,15 +242,17 @@ theorem diagInter_Ioi_subset {o : Ordinal} (r : Iio o) (c : Iio o → Set Ordina
 
 section DiagonalIntersection
 
-theorem isClosed_diagInter {o : Ordinal} {c : Iio o → Set Ordinal} (h : ∀ r, o.IsClosed (c r)) :
-    o.IsClosed (Δ c) := by
+theorem isClosed_diagInter {o : Ordinal} {c : Iio o → Set Ordinal} (h : ∀ r, IsClosedBelow (c r) o) :
+    IsClosedBelow (Δ c) o := by
+  rw [isClosedBelow_iff]
   intro p plt hp r rlt
-  apply (h r).mem_of_isAcc plt
-  apply IsAcc.subset (diagInter_Ioi_subset r c)
+  apply (h r).forall_lt p plt
+  apply IsAcc.mono (diagInter_Ioi_subset r c)
   exact hp.inter_Ioi rlt
 
 theorem isAcc_diagInter {κ : Cardinal.{u}} (hκ : ℵ₀ < κ) (hreg : κ.IsRegular)
     {c : Iio κ.ord → Set Ordinal} (hc : ∀ r, IsClub (c r) κ.ord) : IsAcc κ.ord (Δ c) := by
+  rw [isAcc_iff]
   refine ⟨(ord_zero ▸ ord_strictMono (aleph0_pos.trans hκ)).ne.symm, ?_⟩
   let P : Ordinal.{u} → Ordinal → Prop := fun p q ↦ ∀ r : Iio κ.ord, r.1 < p → q ∈ c r
   have auxP : ∀ r : Iio κ.ord, 0 < r.1 → ∃ s, (r < s ∧ P r s) := by
@@ -230,8 +266,7 @@ theorem isAcc_diagInter {κ : Cardinal.{u}} (hκ : ℵ₀ < κ) (hreg : κ.IsReg
         (hreg.cof_eq.symm ▸ hκ)
         (fun s ↦ hc ⟨s.1, (LT.lt.trans s.2 r.2 : s.1 < κ.ord)⟩)
         ?_
-      · change Cardinal.lift #{x | x < _} < _
-        rw [mk_initialSeg, Cardinal.lift_lift, Cardinal.lift_lt, hreg.cof_eq, ← lt_ord]
+      · rw [mk_Iio_ordinal, Cardinal.lift_lift, Cardinal.lift_lt, hreg.cof_eq, ← lt_ord]
         exact r.2
     obtain ⟨x, hx⟩ := this.2.inter_Ioo_nonempty r.2
     use ⟨x, hx.2.2⟩
@@ -239,27 +274,29 @@ theorem isAcc_diagInter {κ : Cardinal.{u}} (hκ : ℵ₀ < κ) (hreg : κ.IsReg
     · exact hx.2.1
     · exact fun s slt ↦ mem_iInter.mp hx.1 ⟨s.1, slt⟩
   intro p plt
-  obtain ⟨f, hf⟩ := exists_omega_seq_succ_prop_pos.{u, u} (one_lt_omega.trans (lt_ord.mpr hκ))
+  obtain ⟨f, hf⟩ := exists_omega_seq_succ_prop_pos (one_lt_omega0.trans (lt_ord.mpr hκ))
     auxP ⟨p, plt⟩
   use ⨆ i, f i
   have ltκ : ⨆ i, (f i).1 < κ.ord := by
     refine iSup_lt_ord' ?_ fun i ↦ (f i).2
-    change Cardinal.lift #{x | x < _} < _ -- TODO: remove once #16929 merges
-    rwa [mk_initialSeg, Cardinal.lift_lift, Cardinal.lift_lt, card_omega, hreg.cof_eq]
+    have aux : Cardinal.lift.{max 1 u, 0} ℵ₀ = Cardinal.lift.{max 1 u, u} (Cardinal.lift.{u} ℵ₀) := by
+      rw [Cardinal.lift_id]
+      rw [lift_aleph0, lift_aleph0]
+    rwa [mk_Iio_ordinal, card_omega0, Cardinal.lift_lift, aux, Cardinal.lift_umax.{u, 1},
+      Cardinal.lift_lt, lift_aleph0, hreg.cof_eq]
   constructor
   · intro r hr
     rw [Ordinal.lt_iSup'] at hr
     obtain ⟨n, hn⟩ := hr
-    apply (hc r).mem_of_isAcc ltκ
+
+    apply (hc r).1.forall_lt _ ltκ
+    sorry
+
 
   · constructor
     · rw [Ordinal.lt_iSup']
-      exact ⟨⟨0, omega_pos⟩, hf.2.2⟩
+      exact ⟨⟨0, omega0_pos⟩, hf.2.2⟩
     · exact ltκ
-
-
-
-
 
 end DiagonalIntersection
 
@@ -267,7 +304,3 @@ end DiagonalIntersection
 /-- A set of ordinals is stationary below an ordinal if it intersects every club of it. -/
 def IsStationary (S : Set Ordinal) (o : Ordinal) : Prop :=
   ∀ C, IsClub C o → (S ∩ C).Nonempty
-
-theorem IsStationary.inter_club_below {o : Ordinal} {S C : Set Ordinal} (hS : o.IsStationary S)
-    (hC : o.IsClub C) : (S ∩ C ∩ (Iio o)).Nonempty :=
-  (inter_assoc _ _ _) ▸ (hS _ hC.inter_Iio)

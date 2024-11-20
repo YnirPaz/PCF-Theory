@@ -12,14 +12,9 @@ namespace Ordinal
 instance {o : Ordinal.{u}} : Small.{max u v} (Iio o) := small_lift (Iio o)
 
 
--- #16710
 
-def IsAcc (o : Ordinal) (S : Set Ordinal) : Prop :=
-  o ≠ 0 ∧ ∀ p < o, (S ∩ Ioo p o).Nonempty
 
-def IsClosed (S : Set Ordinal) (o : Ordinal) : Prop :=
-  ∀ p < o, IsAcc p S → p ∈ S
-
+/-
 theorem IsAcc.subset {o : Ordinal} {S T : Set Ordinal} (h : S ⊆ T) (ho : o.IsAcc S) :
     o.IsAcc T := ⟨ho.1, fun p plto ↦ (ho.2 p plto).casesOn fun s hs ↦ ⟨s, h hs.1, hs.2⟩⟩
 
@@ -32,14 +27,18 @@ theorem IsAcc.inter_Ioo_nonempty {o : Ordinal} {S : Set Ordinal} (h : o.IsAcc S)
     {p : Ordinal} (hp : p < o) : (S ∩ Ioo p o).Nonempty := h.2 p hp
 
 -- not contributed
+-/
+
 theorem IsAcc.inter_Ioi {o p : Ordinal} {S : Set Ordinal} (hp : p < o) (h : o.IsAcc S) :
     o.IsAcc (S ∩ Ioi p) := by
+  rw [isAcc_iff] at *
   use h.1
   intro q qlt
   obtain ⟨x, hx⟩ := h.2 (max p q) (max_lt hp qlt)
   use x
   refine ⟨⟨hx.1, (max_lt_iff.mp hx.2.1).1⟩, (max_lt_iff.mp hx.2.1).2, hx.2.2⟩
 
+/-
 -- not contributed
 theorem IsClosed.mem_of_isAcc {o p : Ordinal} {S : Set Ordinal} (h : o.IsClosed S) :
     p < o → p.IsAcc S → p ∈ S := fun plt hp ↦ h p plt hp
@@ -78,6 +77,6 @@ theorem blahblah {o : Ordinal.{u}} {f : Iio o → Ordinal.{max u v}} {S : Set Or
       rw [Subtype.mk_lt_mk]
       sorry
 
-
+-/
 
 end Ordinal
