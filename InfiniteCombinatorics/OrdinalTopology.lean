@@ -28,6 +28,14 @@ instance instNoMaxOrderIio {o : Ordinal} {h : o.IsLimit} : NoMaxOrder (Iio o) :=
     rw [← Subtype.coe_lt_coe, coe_succ_Iio (h := h)]
     exact lt_succ a.1⟩
 
+theorem IsAcc.inter_Ioi {o p : Ordinal} {S : Set Ordinal} (h : o.IsAcc S) (hp : p < o) :
+    o.IsAcc (S ∩ Ioi p) := by
+  rw [isAcc_iff]
+  refine ⟨h.pos.ne.symm, fun q hq ↦ ?_⟩
+  obtain ⟨x, xmem⟩ := h.forall_lt (max p q) (max_lt hp hq)
+  use x
+  exact ⟨⟨xmem.1, (max_lt_iff.mp xmem.2.1).1⟩, ⟨(max_lt_iff.mp xmem.2.1).2, xmem.2.2⟩⟩
+
 theorem isAcc_iSup {o : Ordinal.{u}} {α : Iio o} (ho : o.IsLimit) (f : Iio o → Ordinal.{v})
     [Small.{v} (Iio o)] (hf : ∀ α β, α < β → f α < f β) {S : Set Ordinal} (hp : ∀ β, α < β → f β ∈ S) :
     (iSup f).IsAcc S := by
@@ -50,6 +58,5 @@ theorem isAcc_iSup {o : Ordinal.{u}} {α : Iio o} (ho : o.IsLimit) (f : Iio o �
       · apply (lt_ciSup_iff (bddAbove_of_small _)).mpr
         use succ (succ (max α γ))
         exact hf _ _ (lt_succ _)
-
 
 end Ordinal

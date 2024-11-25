@@ -34,9 +34,6 @@ universe u v
 
 namespace Ordinal
 
-
-
-
 /-- A set of ordinals is a club below an ordinal if it is closed and unbounded in it. -/
 def IsClub (C : Set Ordinal) (o : Ordinal) : Prop :=
   IsClosedBelow C o ∧ IsAcc o C
@@ -94,7 +91,7 @@ Additionaly, the sequence can begin arbitrarily high in `o`. That is, above any 
 -/
 theorem exists_omega_seq_succ_prop (opos : 0 < o) {P : Ordinal → Ordinal → Prop}
     (hP : ∀ p : Iio o, ∃ q, (p < q ∧ P p q)) (r : Iio o) : ∃ f : (Iio ω) → Iio o,
-    (∀ i, P (f i) (f (⟨i + 1, isLimit_omega0.2 i i.2⟩))) ∧ (∀ i j, (i < j) → f i < f j)
+    (∀ i, P (f i) (f ⟨i + 1, isLimit_omega0.2 i i.2⟩)) ∧ (∀ i j, (i < j) → f i < f j)
     ∧ r < f ⟨0, omega0_pos⟩ := by
   have oLim : o.IsLimit := ⟨opos.ne.symm, fun a alto ↦ (hP ⟨a, alto⟩).casesOn fun r hr ↦
     lt_of_le_of_lt (succ_le_of_lt hr.1) r.2⟩
@@ -113,13 +110,13 @@ theorem exists_omega_seq_succ_prop (opos : 0 < o) {P : Ordinal → Ordinal → P
       simp [f, H₂]
       generalize_proofs _ pf
       exact (choose_spec pf).casesOn fun h _ ↦ h
-    exact strictMono_of_succ_lt_omega f aux
+    exact strictMono_of_succ_lt_omega0 f aux
   simp [f]
   exact lt_succ r.1
 
 theorem exists_omega_seq_succ_prop_pos (onelto : 1 < o) {P : Ordinal → Ordinal → Prop}
     (hP : ∀ p : Iio o, 0 < p.1 → ∃ q : Iio o, (p < q ∧ P p q)) (r : Iio o) :
-    ∃ f : (Iio ω : Set Ordinal.{0}) → (Iio o), (∀ i, P (f i) (f (⟨i + 1, isLimit_omega0.2 i i.2⟩)))
+    ∃ f : (Iio ω : Set Ordinal.{0}) → (Iio o), (∀ i, P (f i) (f ⟨i + 1, isLimit_omega0.2 i i.2⟩))
     ∧ (∀ i j, (i < j) → f i < f j) ∧ r < f ⟨0, omega0_pos⟩ := by
   let P' : Ordinal → Ordinal → Prop := fun p q ↦ p = 0 ∨ P p q
   have hP' : ∀ p : Iio o, ∃ q : Iio o, (p < q ∧ P' p q) := fun p ↦ by
@@ -245,14 +242,13 @@ theorem diagInter_Ioi_subset {o : Ordinal} (r : Iio o) (c : Iio o → Set Ordina
 
 section DiagonalIntersection
 
-theorem isClosed_diagInter {o : Ordinal} {c : Iio o → Set Ordinal} (h : ∀ r, IsClosedBelow (c r) o) :
-    IsClosedBelow (Δ c) o := by
+theorem isClosedBelow_diagInter {o : Ordinal} {c : Iio o → Set Ordinal}
+    (h : ∀ r, IsClosedBelow (c r) o) : IsClosedBelow (Δ c) o := by
   rw [isClosedBelow_iff]
   intro p plt hp r rlt
   apply (h r).forall_lt p plt
   apply IsAcc.mono (diagInter_Ioi_subset r c)
-  sorry
-  --exact hp.inter_Ioi rlt
+  exact hp.inter_Ioi rlt
 
 theorem isAcc_diagInter {κ : Cardinal.{u}} (hκ : ℵ₀ < κ) (hreg : κ.IsRegular)
     {c : Iio κ.ord → Set Ordinal} (hc : ∀ r, IsClub (c r) κ.ord) : IsAcc κ.ord (Δ c) := by
@@ -323,6 +319,10 @@ theorem isAcc_diagInter {κ : Cardinal.{u}} (hκ : ℵ₀ < κ) (hreg : κ.IsReg
     · rw [Ordinal.lt_iSup']
       exact ⟨⟨0, omega0_pos⟩, hf.2.2⟩
     · exact ltκ
+
+theorem IsClub.diagInter {κ : Cardinal.{u}} (hκ : ℵ₀ < κ) (hreg : κ.IsRegular)
+    {c : Iio κ.ord → Set Ordinal} (hc : ∀ r, IsClub (c r) κ.ord) : IsClub (Δ c) κ.ord :=
+  ⟨isClosedBelow_diagInter (fun x ↦ (hc x).1), isAcc_diagInter hκ hreg hc⟩
 
 end DiagonalIntersection
 
