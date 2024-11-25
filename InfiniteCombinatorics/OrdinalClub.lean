@@ -34,6 +34,9 @@ universe u v
 
 namespace Ordinal
 
+
+
+
 /-- A set of ordinals is a club below an ordinal if it is closed and unbounded in it. -/
 def IsClub (C : Set Ordinal) (o : Ordinal) : Prop :=
   IsClosedBelow C o ∧ IsAcc o C
@@ -91,7 +94,7 @@ Additionaly, the sequence can begin arbitrarily high in `o`. That is, above any 
 -/
 theorem exists_omega_seq_succ_prop (opos : 0 < o) {P : Ordinal → Ordinal → Prop}
     (hP : ∀ p : Iio o, ∃ q, (p < q ∧ P p q)) (r : Iio o) : ∃ f : (Iio ω) → Iio o,
-    (∀ i, P (f i) (f ⟨i + 1, isLimit_omega0.2 i i.2⟩)) ∧ (∀ i j, (i < j) → f i < f j)
+    (∀ i, P (f i) (f (⟨i + 1, isLimit_omega0.2 i i.2⟩))) ∧ (∀ i j, (i < j) → f i < f j)
     ∧ r < f ⟨0, omega0_pos⟩ := by
   have oLim : o.IsLimit := ⟨opos.ne.symm, fun a alto ↦ (hP ⟨a, alto⟩).casesOn fun r hr ↦
     lt_of_le_of_lt (succ_le_of_lt hr.1) r.2⟩
@@ -116,7 +119,7 @@ theorem exists_omega_seq_succ_prop (opos : 0 < o) {P : Ordinal → Ordinal → P
 
 theorem exists_omega_seq_succ_prop_pos (onelto : 1 < o) {P : Ordinal → Ordinal → Prop}
     (hP : ∀ p : Iio o, 0 < p.1 → ∃ q : Iio o, (p < q ∧ P p q)) (r : Iio o) :
-    ∃ f : (Iio ω : Set Ordinal.{0}) → (Iio o), (∀ i, P (f i) (f ⟨i + 1, isLimit_omega0.2 i i.2⟩))
+    ∃ f : (Iio ω : Set Ordinal.{0}) → (Iio o), (∀ i, P (f i) (f (⟨i + 1, isLimit_omega0.2 i i.2⟩)))
     ∧ (∀ i j, (i < j) → f i < f j) ∧ r < f ⟨0, omega0_pos⟩ := by
   let P' : Ordinal → Ordinal → Prop := fun p q ↦ p = 0 ∨ P p q
   have hP' : ∀ p : Iio o, ∃ q : Iio o, (p < q ∧ P' p q) := fun p ↦ by
@@ -180,7 +183,7 @@ theorem IsClub.sInter (hCof : ℵ₀ < o.cof) (hS : ∀ C ∈ S, IsClub C o) (hS
   let sup := iSup (fun n ↦ (f n).1)
   use sup
   have suplt : sup < o := by
-    apply iSup_lt_ord'
+    apply iSup_lt_ord_lift'
     · rw [mk_Iio_ordinal, card_omega0, lift_aleph0, lift_aleph0]
       exact aleph0_lt_lift.mpr hCof
     intro n
@@ -248,7 +251,8 @@ theorem isClosed_diagInter {o : Ordinal} {c : Iio o → Set Ordinal} (h : ∀ r,
   intro p plt hp r rlt
   apply (h r).forall_lt p plt
   apply IsAcc.mono (diagInter_Ioi_subset r c)
-  exact hp.inter_Ioi rlt
+  sorry
+  --exact hp.inter_Ioi rlt
 
 theorem isAcc_diagInter {κ : Cardinal.{u}} (hκ : ℵ₀ < κ) (hreg : κ.IsRegular)
     {c : Iio κ.ord → Set Ordinal} (hc : ∀ r, IsClub (c r) κ.ord) : IsAcc κ.ord (Δ c) := by
@@ -278,21 +282,43 @@ theorem isAcc_diagInter {κ : Cardinal.{u}} (hκ : ℵ₀ < κ) (hreg : κ.IsReg
     auxP ⟨p, plt⟩
   use ⨆ i, f i
   have ltκ : ⨆ i, (f i).1 < κ.ord := by
-    refine iSup_lt_ord' ?_ fun i ↦ (f i).2
+    refine iSup_lt_ord_lift' ?_ fun i ↦ (f i).2
     have aux : Cardinal.lift.{max 1 u, 0} ℵ₀ = Cardinal.lift.{max 1 u, u} (Cardinal.lift.{u} ℵ₀) := by
-      rw [Cardinal.lift_id]
-      rw [lift_aleph0, lift_aleph0]
+      rw [Cardinal.lift_id, lift_aleph0, lift_aleph0]
     rwa [mk_Iio_ordinal, card_omega0, Cardinal.lift_lift, aux, Cardinal.lift_umax.{u, 1},
       Cardinal.lift_lt, lift_aleph0, hreg.cof_eq]
   constructor
   · intro r hr
     rw [Ordinal.lt_iSup'] at hr
     obtain ⟨n, hn⟩ := hr
-
     apply (hc r).1.forall_lt _ ltκ
-    sorry
-
-
+    have aux := hf.1
+    have : ∀ m, n < m → (f (⟨m.1 + 1, isLimit_omega0.succ_lt m.2⟩)).val ∈ c r := by
+      intro m hm
+      apply aux m r
+      have := hf.2.1 n m hm
+      exact hn.trans this
+    have : ∀ (m : ↑(Iio ω)), n < m → ↑(f (succ m)) ∈ c r := by
+      convert this
+      rw [succ_Iio (h := isLimit_omega0)]
+    have : ∀ m, succ n < m → (f m).1 ∈ c r := by
+      intro m hm
+      have := this ⟨pred m.1, (pred_le_self m.1).trans_lt m.2⟩ ?_
+      · convert this
+        apply Subtype.val_inj.mp
+        rw [coe_succ_Iio (h := isLimit_omega0)]
+        simp
+        symm
+        rw [Ordinal.succ_pred_iff_is_succ]
+        refine ((Ordinal.zero_or_succ_or_limit m.1).resolve_left ?_).resolve_right ?_
+        · push_neg; symm
+          apply ne_of_lt
+          exact bot_lt_of_lt <| Subtype.coe_lt_coe.mpr hm
+        · exact fun h ↦ (omega0_le_of_isLimit h).not_lt m.2
+      rw [← Subtype.coe_lt_coe]
+      apply lt_pred.mpr
+      rwa [succ_eq_add_one, ← coe_succ_Iio (h := isLimit_omega0)]
+    exact isAcc_iSup isLimit_omega0 (fun x ↦ (f x).1) hf.2.1 this
   · constructor
     · rw [Ordinal.lt_iSup']
       exact ⟨⟨0, omega0_pos⟩, hf.2.2⟩
