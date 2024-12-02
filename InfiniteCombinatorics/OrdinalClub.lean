@@ -329,3 +329,5 @@ end DiagonalIntersection
 /-- A set of ordinals is stationary below an ordinal if it intersects every club of it. -/
 def IsStationary (S : Set Ordinal) (o : Ordinal) : Prop :=
   ∀ C, IsClub C o → (S ∩ C).Nonempty
+
+def
