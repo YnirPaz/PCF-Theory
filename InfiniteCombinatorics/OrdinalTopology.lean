@@ -11,21 +11,11 @@ namespace Ordinal
 -- Small.{u} → Small.{max u v} isn't properly synthed, so this instance is required.
 instance {o : Ordinal.{u}} : Small.{max u v} (Iio o) := small_lift (Iio o)
 
-theorem coe_succ_Iio {o : Ordinal} {h : o.IsLimit} {α : Iio o} : (succ α).1 = α.1 + 1 := by
-  rw [Ordinal.add_one_eq_succ]
-  apply coe_succ_of_mem
-  have := Subtype.mem α
-  rw [mem_Iio] at this ⊢
-  exact h.succ_lt this
-
-theorem succ_Iio {o : Ordinal} {h : o.IsLimit} {α : Iio o} : succ α = ⟨α.1 + 1, h.succ_lt α.2⟩ :=
-  Subtype.val_inj.mp <| coe_succ_Iio (h := h)
-
 instance instNoMaxOrderIio {o : Ordinal} {h : o.IsLimit} : NoMaxOrder (Iio o) :=
   ⟨by
     intro a
     use succ a
-    rw [← Subtype.coe_lt_coe, coe_succ_Iio (h := h)]
+    rw [← Subtype.coe_lt_coe, coe_succ_Iio h.isSuccPrelimit]
     exact lt_succ a.1⟩
 
 theorem IsAcc.inter_Ioi {o p : Ordinal} {S : Set Ordinal} (h : o.IsAcc S) (hp : p < o) :

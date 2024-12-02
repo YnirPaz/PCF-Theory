@@ -8,21 +8,31 @@ namespace Ordinal
 
 open Set Order
 
--- #16996, named iSup_le_iff
-protected theorem iSup_le_iff' {ι} {f : ι → Ordinal.{u}} {a : Ordinal.{u}} [Small.{u} ι] :
-    iSup f ≤ a ↔ ∀ i, f i ≤ a :=
-  ciSup_le_iff' (bddAbove_of_small _)
+theorem coe_succ_Iio {α : Type*} [PartialOrder α] [SuccOrder α] {a : α} (h : IsSuccPrelimit a)
+    {x : Iio a} : (succ x).1 = succ x.1 := by
+  apply coe_succ_of_mem
+  have := Subtype.mem x
+  rw [mem_Iio] at this ⊢
+  exact h.succ_lt this
 
--- #16996, named lt_iSup
-protected theorem lt_iSup' {ι} {f : ι → Ordinal.{u}} {a : Ordinal.{u}} [Small.{u} ι] :
-    a < iSup f ↔ ∃ i, a < f i := by
-  rw [← not_iff_not]
-  simpa using Ordinal.iSup_le_iff'
+#find_home coe_succ_Iio
 
--- #16996, named le_iSup
-protected theorem le_iSup' {ι} (f : ι → Ordinal.{u}) [Small.{u} ι] : ∀ i, f i ≤ iSup f :=
-  le_ciSup (bddAbove_of_small _)
+theorem succ_Iio {α : Type*} [PartialOrder α] [SuccOrder α] {a : α} (h : IsSuccPrelimit a)
+    {x : Iio a} : succ x = ⟨succ x.1, h.succ_lt x.2⟩ :=
+  Subtype.val_inj.mp <| coe_succ_Iio h
 
+/-
+theorem coe_succ_Iio {o : Ordinal} (h : o.IsLimit) {α : Iio o} : (succ α).1 = succ α.1 := by
+  apply coe_succ_of_mem
+  have := Subtype.mem α
+  rw [mem_Iio] at this ⊢
+  exact h.succ_lt this
+
+theorem succ_Iio {o : Ordinal} (h : o.IsLimit) {α : Iio o} : succ α = ⟨α.1 + 1, h.succ_lt α.2⟩ :=
+  Subtype.val_inj.mp <| coe_succ_Iio h
+-/
+
+-- #19189
 /-- The order isomorphism between ℕ and the first ω ordinals. -/
 @[simps! apply]
 def relIso_nat_omega0 : ℕ ≃o Iio ω where
@@ -42,8 +52,9 @@ theorem relIso_nat_omega0_coe_symm_apply (o : Iio ω) : relIso_nat_omega0.symm o
   exact congrArg Nat.cast <| relIso_nat_omega0.symm_apply_apply n
 
 theorem strictMono_of_succ_lt_omega0 {α : Type*} [Preorder α] (f : Iio ω → α)
-    (hf : ∀ i, f i < f ⟨succ i, isLimit_omega0.succ_lt i.2⟩) : StrictMono f := by
-  have mono := strictMono_nat_of_lt_succ fun n ↦ hf ⟨n, nat_lt_omega0 n⟩
+    (hf : ∀ i, f i < f (succ i)) : StrictMono f := by
+  have mono := strictMono_nat_of_lt_succ fun n ↦
+    (succ_Iio isLimit_omega0.isSuccPrelimit) ▸ hf ⟨n, nat_lt_omega0 n⟩
   convert mono.comp relIso_nat_omega0.symm.strictMono
   ext
   simp

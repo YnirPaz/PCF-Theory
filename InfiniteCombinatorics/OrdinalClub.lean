@@ -91,32 +91,35 @@ Additionaly, the sequence can begin arbitrarily high in `o`. That is, above any 
 -/
 theorem exists_omega_seq_succ_prop (opos : 0 < o) {P : Ordinal → Ordinal → Prop}
     (hP : ∀ p : Iio o, ∃ q, (p < q ∧ P p q)) (r : Iio o) : ∃ f : (Iio ω) → Iio o,
-    (∀ i, P (f i) (f ⟨i + 1, isLimit_omega0.2 i i.2⟩)) ∧ (∀ i j, (i < j) → f i < f j)
+    (∀ i, P (f i) (f (succ i))) ∧ (∀ i j, (i < j) → f i < f j)
     ∧ r < f ⟨0, omega0_pos⟩ := by
   have oLim : o.IsLimit := ⟨opos.ne.symm, fun a alto ↦ (hP ⟨a, alto⟩).casesOn fun r hr ↦
     lt_of_le_of_lt (succ_le_of_lt hr.1) r.2⟩
+  simp_rw [succ_Iio isLimit_omega0.isSuccPrelimit]
   let H₂ : (p : Iio ω) → (Iio o) → (Iio o) := fun _ fp ↦ choose (hP fp)
   let H₃ : (w : Iio ω) → IsLimit w → ((o' : Iio ω) → o' < w → (Iio o)) → (Iio o) :=
     fun w _ _ ↦ ⟨0, oLim.pos⟩
   let f : Iio ω → Iio o := fun x ↦ @boundedLimitRecOn ω isLimit_omega0 (fun _ ↦ Iio o) x
-    ⟨r + 1, oLim.succ_lt r.2⟩ H₂ H₃
+    (succ r) H₂ H₃
   use f
   constructor <;> try constructor
   · intro n
     simp [f, H₂]
     generalize_proofs _ pf
     exact (choose_spec pf).2
-  · have aux : ∀ i, f i < f ⟨i + 1, isLimit_omega0.2 i i.2⟩ := fun i ↦ by
-      simp [f, H₂]
+  · have aux : ∀ i, f i < f (succ i) := fun i ↦ by
+      simp [f, H₂, succ_Iio isLimit_omega0.isSuccPrelimit]
       generalize_proofs _ pf
       exact (choose_spec pf).casesOn fun h _ ↦ h
     exact strictMono_of_succ_lt_omega0 f aux
-  simp [f]
+  have : f ⟨0, omega0_pos⟩ = succ r :=
+    @boundedLimitRec_zero ω isLimit_omega0 ((fun _ ↦ Iio o)) (succ r) H₂ H₃
+  rw [this, succ_Iio oLim.isSuccPrelimit]
   exact lt_succ r.1
 
 theorem exists_omega_seq_succ_prop_pos (onelto : 1 < o) {P : Ordinal → Ordinal → Prop}
     (hP : ∀ p : Iio o, 0 < p.1 → ∃ q : Iio o, (p < q ∧ P p q)) (r : Iio o) :
-    ∃ f : (Iio ω : Set Ordinal.{0}) → (Iio o), (∀ i, P (f i) (f ⟨i + 1, isLimit_omega0.2 i i.2⟩))
+    ∃ f : (Iio ω : Set Ordinal.{0}) → (Iio o), (∀ i, P (f i) (f (succ i)))
     ∧ (∀ i j, (i < j) → f i < f j) ∧ r < f ⟨0, omega0_pos⟩ := by
   let P' : Ordinal → Ordinal → Prop := fun p q ↦ p = 0 ∨ P p q
   have hP' : ∀ p : Iio o, ∃ q : Iio o, (p < q ∧ P' p q) := fun p ↦ by
@@ -143,8 +146,8 @@ theorem exists_omega_seq_succ_prop_pos (onelto : 1 < o) {P : Ordinal → Ordinal
   there is an element of `C`, and `δ` is a limit ordinal,
   then the supremum of the sequence is an accumulation point of `C`. -/
 theorem isAcc_iSup_of_between {δ : Ordinal.{u}} (C : Set Ordinal) (δLim : δ.IsLimit)
-    (s : Iio δ → Ordinal.{max u v}) (sInc : ∀ o, s o < s ⟨succ o, δLim.succ_lt o.2⟩)
-    (h : ∀ o, (C ∩ (Ioo (s o) (s ⟨succ o, δLim.succ_lt o.2⟩))).Nonempty) :
+    (s : Iio δ → Ordinal.{max u v}) (sInc : ∀ o, s o < s (succ o))
+    (h : ∀ o, (C ∩ (Ioo (s o) (s (succ o)))).Nonempty) :
     IsAcc (iSup s) C := by
   rw [isAcc_iff]
   constructor
@@ -152,7 +155,7 @@ theorem isAcc_iSup_of_between {δ : Ordinal.{u}} (C : Set Ordinal) (δLim : δ.I
     use ⟨1, δLim.one_lt⟩
     refine lt_of_le_of_lt (Ordinal.zero_le (s ⟨0, δLim.pos⟩)) ?_
     convert sInc ⟨0, δLim.pos⟩
-    exact succ_zero.symm
+    exact coe_succ_Iio δLim.isSuccPrelimit ▸ succ_zero.symm
   intro p hp
   rw [Ordinal.lt_iSup_iff] at hp
   obtain ⟨r, hr⟩ := hp
@@ -160,7 +163,7 @@ theorem isAcc_iSup_of_between {δ : Ordinal.{u}} (C : Set Ordinal) (δLim : δ.I
   use q
   refine ⟨hq.1, ⟨hr.trans hq.2.1, ?_⟩⟩
   rw [Ordinal.lt_iSup_iff]
-  exact ⟨⟨r.1 + 1, δLim.succ_lt r.2⟩, hq.2.2⟩
+  exact ⟨succ r, hq.2.2⟩
 
 /--
 The intersection of less than `o.cof` clubs in `o` is a club in `o`.
@@ -189,18 +192,17 @@ theorem IsClub.sInter (hCof : ℵ₀ < o.cof) (hS : ∀ C ∈ S, IsClub C o) (hS
   · intro s hs
     apply (hS s hs).1.forall_lt sup suplt
     apply isAcc_iSup_of_between
+    · exact isLimit_omega0
     · intro n
       rw [@Subtype.coe_lt_coe]
       convert hf.2.1 n (succ n) ?_
-      · rw [coe_succ_of_mem]
-        exact isLimit_omega0.succ_lt n.2
       · apply Subtype.coe_lt_coe.mp
         rw [coe_succ_of_mem]
         · exact lt_succ n.1
         exact isLimit_omega0.succ_lt n.2
     · intro n
-      exact hf.1 n s hs
-    · exact isLimit_omega0
+      have := hf.1 n s hs
+      exact this
   · constructor
     · rw [Ordinal.lt_iSup_iff]
       exact ⟨⟨0, omega0_pos⟩, hf.2.2⟩
@@ -285,24 +287,21 @@ theorem isAcc_diagInter {κ : Cardinal.{u}} (hκ : ℵ₀ < κ) (hreg : κ.IsReg
       Cardinal.lift_lt, lift_aleph0, hreg.cof_eq]
   constructor
   · intro r hr
-    rw [Ordinal.lt_iSup'] at hr
+    rw [Ordinal.lt_iSup_iff] at hr
     obtain ⟨n, hn⟩ := hr
     apply (hc r).1.forall_lt _ ltκ
     have aux := hf.1
-    have : ∀ m, n < m → (f (⟨m.1 + 1, isLimit_omega0.succ_lt m.2⟩)).val ∈ c r := by
+    have : ∀ m, n < m → (f (succ m)).val ∈ c r := by
       intro m hm
       apply aux m r
       have := hf.2.1 n m hm
       exact hn.trans this
-    have : ∀ (m : ↑(Iio ω)), n < m → ↑(f (succ m)) ∈ c r := by
-      convert this
-      rw [succ_Iio (h := isLimit_omega0)]
     have : ∀ m, succ n < m → (f m).1 ∈ c r := by
       intro m hm
       have := this ⟨pred m.1, (pred_le_self m.1).trans_lt m.2⟩ ?_
       · convert this
         apply Subtype.val_inj.mp
-        rw [coe_succ_Iio (h := isLimit_omega0)]
+        rw [coe_succ_Iio isLimit_omega0.isSuccPrelimit]
         simp
         symm
         rw [Ordinal.succ_pred_iff_is_succ]
@@ -313,10 +312,10 @@ theorem isAcc_diagInter {κ : Cardinal.{u}} (hκ : ℵ₀ < κ) (hreg : κ.IsReg
         · exact fun h ↦ (omega0_le_of_isLimit h).not_lt m.2
       rw [← Subtype.coe_lt_coe]
       apply lt_pred.mpr
-      rwa [succ_eq_add_one, ← coe_succ_Iio (h := isLimit_omega0)]
+      rwa [← coe_succ_Iio isLimit_omega0.isSuccPrelimit]
     exact isAcc_iSup isLimit_omega0 (fun x ↦ (f x).1) hf.2.1 this
   · constructor
-    · rw [Ordinal.lt_iSup']
+    · rw [Ordinal.lt_iSup_iff]
       exact ⟨⟨0, omega0_pos⟩, hf.2.2⟩
     · exact ltκ
 
