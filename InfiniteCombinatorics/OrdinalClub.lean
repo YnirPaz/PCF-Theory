@@ -325,9 +325,36 @@ theorem IsClub.diagInter {κ : Cardinal.{u}} (hκ : ℵ₀ < κ) (hreg : κ.IsRe
 
 end DiagonalIntersection
 
+theorem type_Iio (α : Ordinal.{u}) : type (· < · : Iio α → Iio α → Prop) = lift.{u + 1} α :=
+  have : (· < · : Iio α → Iio α → Prop) ≃r (· < · : α.toType → α.toType → Prop) :=
+    sorry
+  sorry
+
+example (α : Ordinal) : ∃ S, S ⊆ Iio α ∧ #S = Cardinal.lift.{u + 1, u} α.cof := by
+  obtain ⟨S, hUnb, hCard⟩ := @Ordinal.cof_eq (Iio α) (· < ·) _
+  use S
+  constructor
+  · exact Subtype.coe_image_subset (Iio α) S
+  · rw [Cardinal.mk_image_eq Subtype.val_injective, hCard, lift_cof, type_Iio α]
+
+theorem exists_club_card {o : Ordinal.{u}} (h : o.IsLimit) :
+    ∃ C : Set Ordinal.{u}, #C = Cardinal.lift.{u + 1, u} o.cof ∧ IsClub C o := sorry
+
 
 /-- A set of ordinals is stationary below an ordinal if it intersects every club of it. -/
 def IsStationary (S : Set Ordinal) (o : Ordinal) : Prop :=
   ∀ C, IsClub C o → (S ∩ C).Nonempty
 
-def
+def IsClubGuessing {S : Set Ordinal} (f : S → Set Ordinal) (γ : Ordinal) : Prop :=
+  (∀ δ, IsClub (f δ) δ) ∧ (∀ C, IsClub C γ → ∃ δ, f δ ⊆ C)
+
+
+section ClubGuessing
+
+variable {Ϟ : Ordinal} {κ : Cardinal} (hcof : succ κ < Ϟ.cof)
+
+theorem exists_club_guessing_of_cof {S : Set Ordinal} (hStat : IsStationary S Ϟ)
+    (hS : ∀ α ∈ S, α.cof = κ) : ∃ f : S → Set Ordinal, IsClubGuessing f Ϟ :=
+  sorry
+
+end ClubGuessing
