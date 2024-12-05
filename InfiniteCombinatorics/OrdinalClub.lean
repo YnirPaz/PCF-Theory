@@ -38,6 +38,14 @@ namespace Ordinal
 def IsClub (C : Set Ordinal) (o : Ordinal) : Prop :=
   IsClosedBelow C o ∧ IsAcc o C
 
+structure Club (α : Ordinal) where
+  carrier : Set Ordinal
+  isClub : IsClub carrier α
+
+instance (α : Ordinal) : SetLike (Club α) Ordinal where
+  coe := Club.carrier
+  coe_injective' s t h := by cases s; cases t; congr
+
 theorem isClub_iff {C : Set Ordinal} {o : Ordinal} : IsClub C o
     ↔ ((∀ p < o, IsAcc p C → p ∈ C) ∧ (o ≠ 0 ∧ ∀ p < o, (C ∩ Ioo p o).Nonempty)) :=
   and_congr isClosedBelow_iff (isAcc_iff _ _)
@@ -325,9 +333,7 @@ theorem IsClub.diagInter {κ : Cardinal.{u}} (hκ : ℵ₀ < κ) (hreg : κ.IsRe
 
 end DiagonalIntersection
 
-theorem type_Iio (α : Ordinal.{u}) : type (· < · : Iio α → Iio α → Prop) = lift.{u + 1} α :=
-  have : (· < · : Iio α → Iio α → Prop) ≃r (· < · : α.toType → α.toType → Prop) :=
-    sorry
+theorem type_Iio (α : Ordinal.{u}) : type (· < · : Iio α → Iio α → Prop) = lift.{u + 1} α := by
   sorry
 
 example (α : Ordinal) : ∃ S, S ⊆ Iio α ∧ #S = Cardinal.lift.{u + 1, u} α.cof := by
@@ -338,23 +344,69 @@ example (α : Ordinal) : ∃ S, S ⊆ Iio α ∧ #S = Cardinal.lift.{u + 1, u} �
   · rw [Cardinal.mk_image_eq Subtype.val_injective, hCard, lift_cof, type_Iio α]
 
 theorem exists_club_card {o : Ordinal.{u}} (h : o.IsLimit) :
-    ∃ C : Set Ordinal.{u}, #C = Cardinal.lift.{u + 1, u} o.cof ∧ IsClub C o := sorry
-
+    ∃ C : Club o, #C = Cardinal.lift.{u + 1, u} o.cof := sorry
 
 /-- A set of ordinals is stationary below an ordinal if it intersects every club of it. -/
 def IsStationary (S : Set Ordinal) (o : Ordinal) : Prop :=
   ∀ C, IsClub C o → (S ∩ C).Nonempty
 
-def IsClubGuessing {S : Set Ordinal} (f : S → Set Ordinal) (γ : Ordinal) : Prop :=
-  (∀ δ, IsClub (f δ) δ) ∧ (∀ C, IsClub C γ → ∃ δ, f δ ⊆ C)
+def IsClubGuessing {S : Set Ordinal} (f : (α : S) → Club α) (γ : Ordinal) : Prop :=
+  ∀ C : Club γ, ∃ δ, (f δ).carrier ⊆ C.carrier
 
+theorem exists_club_of_not_isClubGuessing {S : Set Ordinal} {γ : Ordinal} (f : (α : S) → Club α)
+    (h : ¬ IsClubGuessing f γ) : ∃ C : Club γ, ∀ δ, ¬ (f δ).carrier ⊆ C := by
+  dsimp [IsClubGuessing] at h
+  push_neg at h
+  exact h
 
 section ClubGuessing
+namespace ClubGuessing
 
-variable {Ϟ : Ordinal} {κ : Cardinal} (hcof : succ κ < Ϟ.cof)
+class AS where
+  Ϟ : Ordinal
+  κ : Cardinal
+  hκ : ℵ₀ < κ
+  hcof : succ κ < Ϟ.cof
+  S : Set Ordinal
+  hStat : IsStationary S Ϟ
+  hS : ∀ α ∈ S, α.cof = κ
+  hCont : ∀ f : (α : S) → Club α, ¬ IsClubGuessing f Ϟ
 
-theorem exists_club_guessing_of_cof {S : Set Ordinal} (hStat : IsStationary S Ϟ)
-    (hS : ∀ α ∈ S, α.cof = κ) : ∃ f : S → Set Ordinal, IsClubGuessing f Ϟ :=
+namespace AS
+variable [as : AS]
+
+-- starting guess
+def f : (α : S) → Club α := fun α ↦ Classical.choose <| exists_club_card
+  (aleph0_le_cof.mp (as.hS α α.2 ▸ as.hκ).le)
+
+def restrict (E : Club Ϟ) : (α : S) → Club α := fun α ↦ if AccPt α.1 (𝓟 E) then
+  ⟨(f α).1 ∩ E, sorry⟩
+  else sorry
+
+def F : Iio (succ κ).ord → Club Ϟ := by
+  refine @boundedRec (succ κ).ord (fun _ ↦ Club Ϟ) fun o ih ↦
+    Classical.choose <| exists_club_of_not_isClubGuessing _
+      ((hCont <| restrict ⟨⋂₀ {ih o' h | (o') (h)}, ?_⟩))
   sorry
+
+
+
+
+
+
+
+
+theorem contradiction : False := by
+  have := f
+  sorry
+
+end AS
+
+theorem exists_club_guessing_of_cof {Ϟ : Ordinal} {κ : Cardinal} (hκ : ℵ₀ < κ)
+    (hcof : succ κ < Ϟ.cof) {S : Set Ordinal} (hStat : IsStationary S Ϟ)
+    (hS : ∀ α ∈ S, α.cof = κ) : ∃ f : (α : S) → Club α, IsClubGuessing f Ϟ := by
+  by_contra!
+  have as : AS := ⟨Ϟ, κ, hκ, hcof, S, hStat, hS, this⟩
+  exact AS.contradiction
 
 end ClubGuessing

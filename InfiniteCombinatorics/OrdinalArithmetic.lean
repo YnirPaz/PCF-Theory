@@ -15,8 +15,6 @@ theorem coe_succ_Iio {α : Type*} [PartialOrder α] [SuccOrder α] {a : α} (h :
   rw [mem_Iio] at this ⊢
   exact h.succ_lt this
 
-#find_home coe_succ_Iio
-
 theorem succ_Iio {α : Type*} [PartialOrder α] [SuccOrder α] {a : α} (h : IsSuccPrelimit a)
     {x : Iio a} : succ x = ⟨succ x.1, h.succ_lt x.2⟩ :=
   Subtype.val_inj.mp <| coe_succ_Iio h
@@ -78,3 +76,16 @@ theorem lift_iSup {ι : Type v} {f : ι → Ordinal.{w}} (hf : BddAbove (range f
     lift.{u} (iSup f) = ⨆ i, lift.{u} (f i) := by
   rw [iSup, iSup, lift_sSup hf, ← range_comp]
   simp [Function.comp_def]
+
+
+/-- Strong bounded recursion for ordinals. -/
+@[elab_as_elim]
+def boundedRec {l : Ordinal} {C : Iio l → Sort*}
+    (H : (o : Iio l) → (Π o' < o, C o') → C o) (o : Iio l) : C o :=
+  lt_wf.fix (C := fun p ↦ (h : p < l) → C ⟨p, h⟩)
+    (fun o h h' ↦ H ⟨o, h'⟩ fun o' lt ↦ h o' lt o'.2) o o.2
+
+theorem boundedRec_eq {l} {C} (H o) :
+    @boundedRec l C H o = H o (fun o' _ ↦ @boundedRec l C H o') := by
+  simp_rw [boundedRec]
+  rw [lt_wf.fix_eq]
