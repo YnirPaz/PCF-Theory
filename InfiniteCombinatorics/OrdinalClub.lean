@@ -42,9 +42,16 @@ structure Club (α : Ordinal) where
   carrier : Set Ordinal
   isClub : IsClub carrier α
 
-instance (α : Ordinal) : SetLike (Club α) Ordinal where
+instance {α : Ordinal} : SetLike (Club α) Ordinal where
   coe := Club.carrier
   coe_injective' s t h := by cases s; cases t; congr
+
+instance {α : Ordinal} : HasSubset (Club α) where
+  Subset := fun C D ↦ C.carrier ⊆ D.carrier
+
+--theorem club_subset_def {α : Ordinal} (C D : Club α) :
+--    C ⊆ D ↔ C.carrier ⊆ D.carrier := by
+--  rfl
 
 theorem isClub_iff {C : Set Ordinal} {o : Ordinal} : IsClub C o
     ↔ ((∀ p < o, IsAcc p C → p ∈ C) ∧ (o ≠ 0 ∧ ∀ p < o, (C ∩ Ioo p o).Nonempty)) :=
@@ -362,35 +369,53 @@ theorem exists_club_of_not_isClubGuessing {S : Set Ordinal} {γ : Ordinal} (f : 
 section ClubGuessing
 namespace ClubGuessing
 
-class AS where
+class Assumptions where
   Ϟ : Ordinal
   κ : Cardinal
   hκ : ℵ₀ < κ
   hcof : succ κ < Ϟ.cof
   S : Set Ordinal
   hStat : IsStationary S Ϟ
+  hSub : S ⊆ Iio Ϟ
   hS : ∀ α ∈ S, α.cof = κ
   hCont : ∀ f : (α : S) → Club α, ¬ IsClubGuessing f Ϟ
 
-namespace AS
-variable [as : AS]
+namespace Assumptions
+variable [assumptions : Assumptions]
 
 -- starting guess
 def f : (α : S) → Club α := fun α ↦ Classical.choose <| exists_club_card
-  (aleph0_le_cof.mp (as.hS α α.2 ▸ as.hκ).le)
+  (aleph0_le_cof.mp (hS α α.2 ▸ hκ).le)
 
-def restrict (E : Club Ϟ) : (α : S) → Club α := fun α ↦ if AccPt α.1 (𝓟 E) then
+def restrict (E : Club Ϟ) : (α : S) → Club α := fun α ↦ if IsAcc α.1 E then
   ⟨(f α).1 ∩ E, sorry⟩
   else sorry
+
+theorem restrict_subset {E : Club Ϟ} {α : S} (h : IsAcc α.1 E) :
+    restrict E α ⊆ f α := sorry
 
 def F : Iio (succ κ).ord → Club Ϟ := by
   refine @boundedRec (succ κ).ord (fun _ ↦ Club Ϟ) fun o ih ↦
     Classical.choose <| exists_club_of_not_isClubGuessing _
-      ((hCont <| restrict ⟨⋂₀ {ih o' h | (o') (h)}, ?_⟩))
+      ((hCont <| restrict ⟨⋂ α, ih α, ?_⟩))
   sorry
 
+-- prefix intersections of `F`
+def F' : Iio (succ κ).ord → Club Ϟ := fun δ ↦ ⟨⋂ α : Iio δ, F α, sorry⟩
 
+def E : Club Ϟ := ⟨⋂ α : Iio (succ κ).ord, F α, sorry⟩
 
+def α : Ordinal := sorry
+
+theorem isAcc_α : IsAcc α E := sorry
+
+theorem α_mem_S : α ∈ S := sorry
+
+-- β < γ → restrict (⋂ ε : Iio γ, F ε) α ⊂ restrict (⋂ ε : Iio β, F ε) α
+
+theorem restrict_subset_α (β : Iio (succ κ).ord) :
+    restrict (F' β) ⟨α, α_mem_S⟩ ⊆ f ⟨α, α_mem_S⟩ :=
+  restrict_subset <| isAcc_α.mono (by exact fun x hx y ⟨z, hz⟩ ↦ hx y ⟨z, hz⟩)
 
 
 
@@ -400,13 +425,13 @@ theorem contradiction : False := by
   have := f
   sorry
 
-end AS
+end Assumptions
 
 theorem exists_club_guessing_of_cof {Ϟ : Ordinal} {κ : Cardinal} (hκ : ℵ₀ < κ)
     (hcof : succ κ < Ϟ.cof) {S : Set Ordinal} (hStat : IsStationary S Ϟ)
     (hS : ∀ α ∈ S, α.cof = κ) : ∃ f : (α : S) → Club α, IsClubGuessing f Ϟ := by
   by_contra!
-  have as : AS := ⟨Ϟ, κ, hκ, hcof, S, hStat, hS, this⟩
-  exact AS.contradiction
+  have : Assumptions := ⟨Ϟ, κ, hκ, hcof, S ∩ Iio Ϟ, sorry, sorry, sorry, sorry⟩
+  exact Assumptions.contradiction
 
 end ClubGuessing
