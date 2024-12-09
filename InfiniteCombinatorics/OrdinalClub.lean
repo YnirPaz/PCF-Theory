@@ -49,6 +49,16 @@ instance {α : Ordinal} : SetLike (Club α) Ordinal where
 instance {α : Ordinal} : HasSubset (Club α) where
   Subset := fun C D ↦ C.carrier ⊆ D.carrier
 
+instance {α : Ordinal} : HasSSubset (Club α) where
+  SSubset := fun C D ↦ C.carrier ⊂ D.carrier
+
+instance {α : Ordinal} : IsNonstrictStrictOrder (Club α) (· ⊆ ·) (· ⊂ ·) where
+  right_iff_left_not_left _ _ := Iff.rfl
+
+instance {α : Ordinal} : IsAntisymm (Club α) (· ⊆ ·) where
+  antisymm _ _ h h' := SetLike.coe_injective (Subset.antisymm h h')
+
+
 --theorem club_subset_def {α : Ordinal} (C D : Club α) :
 --    C ⊆ D ↔ C.carrier ⊆ D.carrier := by
 --  rfl
@@ -391,9 +401,6 @@ def restrict (E : Club Ϟ) : (α : S) → Club α := fun α ↦ if IsAcc α.1 E 
   ⟨(f α).1 ∩ E, sorry⟩
   else sorry
 
-theorem restrict_subset {E : Club Ϟ} {α : S} (h : IsAcc α.1 E) :
-    restrict E α ⊆ f α := sorry
-
 def F : Iio (succ κ).ord → Club Ϟ := by
   refine @boundedRec (succ κ).ord (fun _ ↦ Club Ϟ) fun o ih ↦
     Classical.choose <| exists_club_of_not_isClubGuessing _
@@ -411,18 +418,33 @@ theorem isAcc_α : IsAcc α E := sorry
 
 theorem α_mem_S : α ∈ S := sorry
 
--- β < γ → restrict (⋂ ε : Iio γ, F ε) α ⊂ restrict (⋂ ε : Iio β, F ε) α
+theorem isAcc_α_F' (β : Iio (succ κ).ord) : IsAcc α (F' β) :=
+  isAcc_α.mono (by exact fun x hx y ⟨z, hz⟩ ↦ hx y ⟨z, hz⟩)
 
-theorem restrict_subset_α (β : Iio (succ κ).ord) :
-    restrict (F' β) ⟨α, α_mem_S⟩ ⊆ f ⟨α, α_mem_S⟩ :=
-  restrict_subset <| isAcc_α.mono (by exact fun x hx y ⟨z, hz⟩ ↦ hx y ⟨z, hz⟩)
+theorem restrict_subset_α (β : Iio (succ κ).ord) : restrict (F' β) ⟨α, α_mem_S⟩ ⊆ f ⟨α, α_mem_S⟩ :=
+  sorry
 
+theorem restrict_subset_restrict {C D : Club Ϟ} (h : C ⊆ D) (ha : IsAcc α C) :
+    restrict C ⟨α, α_mem_S⟩ ⊆ restrict D ⟨α, α_mem_S⟩ := by
+  unfold restrict
+  rw [if_pos ha, if_pos (by exact ha.mono h)]
+  exact inter_subset_inter (fun _ H ↦ H) h
+
+theorem restrict_ssubset_restrict {β γ : Iio (succ κ).ord} (h : β < γ) :
+    restrict (F' γ) ⟨α, α_mem_S⟩ ⊂ restrict (F' β) ⟨α, α_mem_S⟩ := by
+  rw [ssubset_iff_subset_ne]
+  constructor
+  · have : F' γ ⊆ F' β := fun x hx s ⟨z, hz⟩ ↦ hx s ⟨⟨z.1, z.2.trans h⟩, hz⟩
+    have : IsAcc α (F' γ) := isAcc_α_F' _
+    apply restrict_subset_restrict
+    · assumption
+    · assumption
+  · sorry
 
 
 
 
 theorem contradiction : False := by
-  have := f
   sorry
 
 end Assumptions
