@@ -84,6 +84,14 @@ theorem IsClub.inter_Iio {C : Set Ordinal} {o : Ordinal} (h : IsClub C o) :
     convert h.isAcc.inter_Ioo_nonempty hpo using 1
     ext; simp_all
 
+theorem isClub_univ {α : Ordinal} (h : IsLimit α) : IsClub Set.univ α := by
+  refine isClub_iff.mpr ⟨?_, ?_, ?_⟩
+  · exact fun _ _ _ ↦ mem_univ _
+  · exact h.pos.ne.symm
+  · exact fun p plt ↦ ⟨succ p, ⟨mem_univ _, ⟨lt_succ _, h.succ_lt plt⟩⟩⟩
+
+def univ_club {α : Ordinal} (h : IsLimit α) : Club α := ⟨Set.univ, isClub_univ h⟩
+
 end ClubBasics
 
 section ClubIntersection
@@ -377,6 +385,8 @@ theorem not_exists_ssubset_chain_lift {α : Type u} {S : Set α} {ℓ : Ordinal.
     ¬ ∃ f : Iio ℓ → Set α, (∀ o, f o ⊆ S) ∧ (∀ o p, o < p → f p ⊂ f o) := by
   sorry
 
+
+
 -- what?
 example (α : Ordinal) : ∃ S, S ⊆ Iio α ∧ #S = Cardinal.lift.{u + 1, u} α.cof := by
   obtain ⟨S, hUnb, hCard⟩ := @Ordinal.cof_eq (Iio α) (· < ·) _
@@ -387,6 +397,8 @@ example (α : Ordinal) : ∃ S, S ⊆ Iio α ∧ #S = Cardinal.lift.{u + 1, u} �
 
 theorem exists_club_card {o : Ordinal.{u}} (h : o.IsLimit) :
     ∃ C : Club o, #C = Cardinal.lift.{u + 1, u} o.cof := sorry
+
+
 
 /-- A set of ordinals is stationary below an ordinal if it intersects every club of it. -/
 def IsStationary (S : Set Ordinal) (o : Ordinal) : Prop :=
@@ -436,7 +448,27 @@ def F : Iio (succ κ).ord → Club Ϟ := by
   refine @boundedRec (succ κ).ord (fun _ ↦ Club Ϟ) fun o ih ↦
     Classical.choose <| exists_club_of_not_isClubGuessing _
       ((hCont <| restrict ⟨⋂ α, ih α, ?_⟩))
-  sorry
+  have aux : ℵ₀ < Ϟ.cof := by
+    calc
+      ℵ₀ < κ := hκ
+      _ < succ κ := lt_succ _
+      _ < Ϟ.cof := hcof
+  by_cases h : 0 < o.1
+  · have : Nonempty (Iio o) := ⟨⟨0, h.trans o.2⟩, h⟩
+    apply IsClub.iInter_lift (f := fun α ↦ (ih α).carrier) aux
+    · exact fun i ↦ (ih i).isClub
+    · rw [mk_Iio_subtype, mk_Iio_ordinal, Cardinal.lift_lift, Cardinal.lift_lt]
+      have : o.1.card < succ κ := lt_ord.mp o.2
+      exact this.trans hcof
+  have : IsEmpty (Iio o) := by -- make this a seperate theorem
+    apply isEmpty_iff.mpr
+    intro ⟨x, h'⟩
+    have : x.1 < 0 := ((eq_zero_or_pos o.1).resolve_right h) ▸ h'
+    exact (Ordinal.zero_le x.1).not_lt this
+  rw [iInter_of_empty]
+  convert isClub_univ (?_)
+  apply aleph0_le_cof.mp
+  exact aux.le
 
 -- prefix intersections of `F`
 def F' : Iio (succ κ).ord → Club Ϟ := fun δ ↦ ⟨⋂ α : Iio δ, F α, sorry⟩
@@ -487,11 +519,13 @@ theorem restrict_ssubset_restrict {β γ : Iio (succ κ).ord} (h : β < γ) :
 theorem contradiction : False := by
   have : Cardinal.lift.{u, u + 1} #(f ⟨α, α_mem_S⟩).carrier
       < Cardinal.lift.{u + 1, u} (succ κ).ord.card := by
-    have : #(f ⟨α, α_mem_S⟩) = Cardinal.lift.{u + 1, u} κ := by
+    have : #↑(f ⟨α, α_mem_S⟩).carrier = Cardinal.lift.{u + 1, u} κ := by
       unfold f
       generalize_proofs pf pf'
-      have : α.cof = κ := hS α pf
-      rw [choose_spec pf', this]
+      convert choose_spec pf'
+      exact (hS α pf).symm
+    rw [card_ord, this, Cardinal.lift_lift, Cardinal.lift_lt]
+    exact lt_succ κ
   apply not_exists_ssubset_chain_lift this
   use fun x ↦ restrict (F' x) ⟨α, α_mem_S⟩
   constructor
@@ -503,9 +537,18 @@ end Assumptions
 theorem exists_club_guessing_of_cof {Ϟ : Ordinal} {κ : Cardinal} (hκ : ℵ₀ < κ)
     (hcof : succ κ < Ϟ.cof) {S : Set Ordinal} (hStat : IsStationary S Ϟ)
     (hS : ∀ α ∈ S, α.cof = κ) : ∃ f : (α : S) → Club α, IsClubGuessing f Ϟ := by
-  by_contra!
+  by_contra! h
   have : Assumptions := ⟨Ϟ, κ, hκ, hcof, S ∩ Iio Ϟ, hStat.inter_Iio, inter_subset_right,
-    sorry, sorry⟩
+    (fun _ ⟨h, _⟩ ↦ hS _ h), ?_⟩
   exact Assumptions.contradiction
+  · intro f hf
+    let g : (α : S) → (Club α) := fun α ↦ if hα : α.1 ∈ (Iio Ϟ) then (f ⟨α.1, ⟨α.2, hα⟩⟩) else
+      univ_club (aleph0_le_cof.mp (hS α α.2 ▸ hκ).le)
+    refine h g fun C ↦ ?_
+    obtain ⟨δ, hδ⟩ := hf ⟨C.1 ∩ Iio Ϟ, C.2.inter_Iio⟩
+    use ⟨δ.1, δ.2.1⟩
+    unfold g
+    rw [dif_pos δ.2.2]
+    exact hδ.trans inter_subset_left
 
 end ClubGuessing

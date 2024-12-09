@@ -88,17 +88,3 @@ theorem boundedRec_eq {l} {C} (H o) :
     @boundedRec l C H o = H o (fun o' ↦ @boundedRec l C H o') := by
   simp_rw[boundedRec]
   rw [lt_wf.fix_eq]
-
-/-
-/-- Strong bounded recursion for ordinals. -/
-@[elab_as_elim]
-def boundedRec {l : Ordinal} {C : Iio l → Sort*}
-    (H : (o : Iio l) → (Π o' < o, C o') → C o) (o : Iio l) : C o :=
-  lt_wf.fix (C := fun p ↦ (h : p < l) → C ⟨p, h⟩)
-    (fun o h h' ↦ H ⟨o, h'⟩ fun o' lt ↦ h o' lt o'.2) o o.2
-
-theorem boundedRec_eq {l} {C} (H o) :
-    @boundedRec l C H o = H o (fun o' _ ↦ @boundedRec l C H o') := by
-  simp_rw [boundedRec]
-  rw [lt_wf.fix_eq]
--/
