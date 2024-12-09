@@ -58,14 +58,33 @@ instance {α : Ordinal} : IsNonstrictStrictOrder (Club α) (· ⊆ ·) (· ⊂ �
 instance {α : Ordinal} : IsAntisymm (Club α) (· ⊆ ·) where
   antisymm _ _ h h' := SetLike.coe_injective (Subset.antisymm h h')
 
+section ClubBasics
 
---theorem club_subset_def {α : Ordinal} (C D : Club α) :
---    C ⊆ D ↔ C.carrier ⊆ D.carrier := by
---  rfl
+theorem IsClub.isClosedBelow {C : Set Ordinal} {o : Ordinal} (h : IsClub C o) :
+    IsClosedBelow C o := h.1
+
+theorem IsClub.isAcc {C : Set Ordinal} {o : Ordinal} (h : IsClub C o) : IsAcc o C := h.2
 
 theorem isClub_iff {C : Set Ordinal} {o : Ordinal} : IsClub C o
     ↔ ((∀ p < o, IsAcc p C → p ∈ C) ∧ (o ≠ 0 ∧ ∀ p < o, (C ∩ Ioo p o).Nonempty)) :=
   and_congr isClosedBelow_iff (isAcc_iff _ _)
+
+theorem IsClub.pos {C : Set Ordinal} {o : Ordinal} (h : IsClub C o) : 0 < o :=
+  h.isAcc.pos
+
+theorem IsClub.mem_of_isAcc {C : Set Ordinal} {o p : Ordinal} (h : IsClub C o) (hp : p < o) :
+    IsAcc p C → p ∈ C := (isClub_iff.mp h).1 _ hp
+
+theorem IsClub.inter_Iio {C : Set Ordinal} {o : Ordinal} (h : IsClub C o) :
+    IsClub (C ∩ Iio o) o := by
+  apply isClub_iff.mpr
+  constructor
+  · exact fun p hpo hp ↦ ⟨h.mem_of_isAcc hpo (hp.mono inter_subset_left), hpo⟩
+  · refine ⟨h.pos.ne.symm, fun p hpo ↦ ?_⟩
+    convert h.isAcc.inter_Ioo_nonempty hpo using 1
+    ext; simp_all
+
+end ClubBasics
 
 section ClubIntersection
 
@@ -353,6 +372,12 @@ end DiagonalIntersection
 theorem type_Iio (α : Ordinal.{u}) : type (· < · : Iio α → Iio α → Prop) = lift.{u + 1} α := by
   sorry
 
+theorem not_exists_ssubset_chain_lift {α : Type u} {S : Set α} {ℓ : Ordinal.{v}}
+    (h : Cardinal.lift.{v, u} #S < Cardinal.lift.{u, v} ℓ.card) :
+    ¬ ∃ f : Iio ℓ → Set α, (∀ o, f o ⊆ S) ∧ (∀ o p, o < p → f p ⊂ f o) := by
+  sorry
+
+-- what?
 example (α : Ordinal) : ∃ S, S ⊆ Iio α ∧ #S = Cardinal.lift.{u + 1, u} α.cof := by
   obtain ⟨S, hUnb, hCard⟩ := @Ordinal.cof_eq (Iio α) (· < ·) _
   use S
@@ -367,6 +392,12 @@ theorem exists_club_card {o : Ordinal.{u}} (h : o.IsLimit) :
 def IsStationary (S : Set Ordinal) (o : Ordinal) : Prop :=
   ∀ C, IsClub C o → (S ∩ C).Nonempty
 
+theorem IsStationary.inter_Iio {S : Set Ordinal} {o : Ordinal} (hS : IsStationary S o) :
+    IsStationary (S ∩ Iio o) o := by
+  intro C hC
+  convert hS _ hC.inter_Iio using 1
+  rw [inter_comm C, inter_assoc]
+
 def IsClubGuessing {S : Set Ordinal} (f : (α : S) → Club α) (γ : Ordinal) : Prop :=
   ∀ C : Club γ, ∃ δ, (f δ).carrier ⊆ C.carrier
 
@@ -380,15 +411,15 @@ section ClubGuessing
 namespace ClubGuessing
 
 class Assumptions where
-  Ϟ : Ordinal
-  κ : Cardinal
+  Ϟ : Ordinal.{u}
+  κ : Cardinal.{u}
   hκ : ℵ₀ < κ
   hcof : succ κ < Ϟ.cof
-  S : Set Ordinal
+  S : Set Ordinal.{u}
   hStat : IsStationary S Ϟ
   hSub : S ⊆ Iio Ϟ
   hS : ∀ α ∈ S, α.cof = κ
-  hCont : ∀ f : (α : S) → Club α, ¬ IsClubGuessing f Ϟ
+  hCont : ∀ f : (α : S) → Club.{u} α, ¬ IsClubGuessing f Ϟ
 
 namespace Assumptions
 variable [assumptions : Assumptions]
@@ -421,8 +452,9 @@ theorem α_mem_S : α ∈ S := sorry
 theorem isAcc_α_F' (β : Iio (succ κ).ord) : IsAcc α (F' β) :=
   isAcc_α.mono (by exact fun x hx y ⟨z, hz⟩ ↦ hx y ⟨z, hz⟩)
 
-theorem restrict_subset_α (β : Iio (succ κ).ord) : restrict (F' β) ⟨α, α_mem_S⟩ ⊆ f ⟨α, α_mem_S⟩ :=
-  sorry
+theorem restrict_subset_α (β : Iio (succ κ).ord) : restrict (F' β) ⟨α, α_mem_S⟩ ⊆ f ⟨α, α_mem_S⟩ := by
+  rw [restrict, if_pos (isAcc_α_F' _)]
+  exact inter_subset_left
 
 theorem restrict_subset_restrict {C D : Club Ϟ} (h : C ⊆ D) (ha : IsAcc α C) :
     restrict C ⟨α, α_mem_S⟩ ⊆ restrict D ⟨α, α_mem_S⟩ := by
@@ -430,22 +462,41 @@ theorem restrict_subset_restrict {C D : Club Ϟ} (h : C ⊆ D) (ha : IsAcc α C)
   rw [if_pos ha, if_pos (by exact ha.mono h)]
   exact inter_subset_inter (fun _ H ↦ H) h
 
+theorem restrict_not_subset (β : Iio (succ κ).ord) :
+    ¬ (restrict (F' β) ⟨α, α_mem_S⟩).carrier ⊆ (F β).carrier := by
+  rw [F, boundedRec_eq]
+  generalize_proofs _ _ _ _ pf
+  exact choose_spec pf ⟨α, α_mem_S⟩
+
+theorem restrict_subset {β γ : Iio (succ κ).ord} (h : β < γ) :
+    (restrict (F' γ) ⟨α, α_mem_S⟩).carrier ⊆ (F β).carrier := by
+  rw [restrict, if_pos (isAcc_α_F' γ)]
+  refine inter_subset_right.trans ?_
+  intro x xmem
+  exact xmem (F β).carrier ⟨⟨β, h⟩, rfl⟩
+
 theorem restrict_ssubset_restrict {β γ : Iio (succ κ).ord} (h : β < γ) :
     restrict (F' γ) ⟨α, α_mem_S⟩ ⊂ restrict (F' β) ⟨α, α_mem_S⟩ := by
   rw [ssubset_iff_subset_ne]
   constructor
-  · have : F' γ ⊆ F' β := fun x hx s ⟨z, hz⟩ ↦ hx s ⟨⟨z.1, z.2.trans h⟩, hz⟩
-    have : IsAcc α (F' γ) := isAcc_α_F' _
-    apply restrict_subset_restrict
-    · assumption
-    · assumption
-  · sorry
-
-
-
+  · apply restrict_subset_restrict
+    · exact fun x hx s ⟨z, hz⟩ ↦ hx s ⟨⟨z.1, z.2.trans h⟩, hz⟩
+    · exact isAcc_α_F' _
+  · exact fun heq ↦ restrict_not_subset β (heq ▸ (restrict_subset h))
 
 theorem contradiction : False := by
-  sorry
+  have : Cardinal.lift.{u, u + 1} #(f ⟨α, α_mem_S⟩).carrier
+      < Cardinal.lift.{u + 1, u} (succ κ).ord.card := by
+    have : #(f ⟨α, α_mem_S⟩) = Cardinal.lift.{u + 1, u} κ := by
+      unfold f
+      generalize_proofs pf pf'
+      have : α.cof = κ := hS α pf
+      rw [choose_spec pf', this]
+  apply not_exists_ssubset_chain_lift this
+  use fun x ↦ restrict (F' x) ⟨α, α_mem_S⟩
+  constructor
+  · exact restrict_subset_α
+  · exact fun β γ ↦ restrict_ssubset_restrict
 
 end Assumptions
 
@@ -453,7 +504,8 @@ theorem exists_club_guessing_of_cof {Ϟ : Ordinal} {κ : Cardinal} (hκ : ℵ₀
     (hcof : succ κ < Ϟ.cof) {S : Set Ordinal} (hStat : IsStationary S Ϟ)
     (hS : ∀ α ∈ S, α.cof = κ) : ∃ f : (α : S) → Club α, IsClubGuessing f Ϟ := by
   by_contra!
-  have : Assumptions := ⟨Ϟ, κ, hκ, hcof, S ∩ Iio Ϟ, sorry, sorry, sorry, sorry⟩
+  have : Assumptions := ⟨Ϟ, κ, hκ, hcof, S ∩ Iio Ϟ, hStat.inter_Iio, inter_subset_right,
+    sorry, sorry⟩
   exact Assumptions.contradiction
 
 end ClubGuessing
