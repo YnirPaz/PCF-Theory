@@ -12,3 +12,5 @@ theorem mk_Iio_subtype {o : Ordinal} {p : Iio o} : #(Iio p) = #(Iio p.1) := by
     have := h.trans this
     this⟩, h⟩
   exact ⟨f, g, congrFun rfl, congrFun rfl⟩
+
+theorem two_lt_aleph0 : 2 < ℵ₀ := nat_lt_aleph0 2

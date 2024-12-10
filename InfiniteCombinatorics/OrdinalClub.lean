@@ -280,6 +280,30 @@ theorem IsClub.iInter [Nonempty ι] (hCof : ℵ₀ < o.cof) (hf : ∀ i, IsClub 
     (ιCard : #ι < o.cof) : IsClub (⋂ i, f i) o :=
   IsClub.iInter_lift hCof hf (Cardinal.lift_lt.mpr ιCard)
 
+theorem IsClub.inter {Ϟ : Ordinal.{u}} (hCof : ℵ₀ < Ϟ.cof) {C D : Set Ordinal}
+    (hC : IsClub C Ϟ) (hD : IsClub D Ϟ) : IsClub (C ∩ D) Ϟ := by
+  rw [← sInter_pair C D]
+  refine IsClub.sInter hCof ?_ ⟨C, mem_insert C _⟩ ?_
+  · simp_all
+  · by_cases h : C = D
+    · simp_all
+      rw [← lift_cof, ← Cardinal.lift_one.{u, u + 1}, Cardinal.lift_lt] -- {u, u + 1} (:
+      exact one_lt_aleph0.trans hCof
+    · simp_all
+      rw [← lift_cof, ← Cardinal.lift_two.{u + 1, u}, Cardinal.lift_lt] -- {u + 1, u} ):
+      exact two_lt_aleph0.trans hCof
+
+theorem IsClub.iInter_Iio {Ϟ o : Ordinal.{u}} {p : Iio o} {f : Iio p → Set Ordinal} (hϞ : ℵ₀ < Ϟ.cof)
+    (h : p.1.card < Ϟ.cof) (hf : ∀ x, IsClub (f x) Ϟ) : IsClub (⋂ α, f α) Ϟ := by
+  by_cases h : 0 < p.1
+  · have : Nonempty (Iio p) := ⟨⟨0, h.trans p.2⟩, h⟩
+    apply IsClub.iInter_lift hϞ hf
+    · rwa [mk_Iio_subtype, mk_Iio_ordinal, Cardinal.lift_lift, Cardinal.lift_lt]
+  · have : IsEmpty (Iio p) := isEmpty_iff.mpr fun ⟨x, h'⟩ ↦
+      (Ordinal.zero_le x.1).not_lt <| ((eq_zero_or_pos p.1).resolve_right h) ▸ h'
+    rw [iInter_of_empty]
+    convert isClub_univ <| aleph0_le_cof.mp hϞ.le
+
 end ClubIntersection
 
 def diagInter {o : Ordinal} (c : Iio o → Set Ordinal) : Set Ordinal :=
@@ -436,13 +460,19 @@ class Assumptions where
 namespace Assumptions
 variable [assumptions : Assumptions]
 
+theorem isLimit_of_mem_S {α : S} : IsLimit α.1 := aleph0_le_cof.mp (hS α α.2 ▸ hκ).le
+
 -- starting guess
-def f : (α : S) → Club α := fun α ↦ Classical.choose <| exists_club_card
-  (aleph0_le_cof.mp (hS α α.2 ▸ hκ).le)
+def f : (α : S) → Club α := fun _ ↦ Classical.choose <| exists_club_card isLimit_of_mem_S
 
 def restrict (E : Club Ϟ) : (α : S) → Club α := fun α ↦ if IsAcc α.1 E then
-  ⟨(f α).1 ∩ E, sorry⟩
-  else sorry
+  ⟨(f α).1 ∩ E, by
+    have := trivial
+    apply IsClub.inter sorry
+    · exact (f α).2
+    · sorry -- is club of acc point
+  ⟩
+  else univ_club isLimit_of_mem_S
 
 def F : Iio (succ κ).ord → Club Ϟ := by
   refine @boundedRec (succ κ).ord (fun _ ↦ Club Ϟ) fun o ih ↦
@@ -453,22 +483,9 @@ def F : Iio (succ κ).ord → Club Ϟ := by
       ℵ₀ < κ := hκ
       _ < succ κ := lt_succ _
       _ < Ϟ.cof := hcof
-  by_cases h : 0 < o.1
-  · have : Nonempty (Iio o) := ⟨⟨0, h.trans o.2⟩, h⟩
-    apply IsClub.iInter_lift (f := fun α ↦ (ih α).carrier) aux
-    · exact fun i ↦ (ih i).isClub
-    · rw [mk_Iio_subtype, mk_Iio_ordinal, Cardinal.lift_lift, Cardinal.lift_lt]
-      have : o.1.card < succ κ := lt_ord.mp o.2
-      exact this.trans hcof
-  have : IsEmpty (Iio o) := by -- make this a seperate theorem
-    apply isEmpty_iff.mpr
-    intro ⟨x, h'⟩
-    have : x.1 < 0 := ((eq_zero_or_pos o.1).resolve_right h) ▸ h'
-    exact (Ordinal.zero_le x.1).not_lt this
-  rw [iInter_of_empty]
-  convert isClub_univ (?_)
-  apply aleph0_le_cof.mp
-  exact aux.le
+  apply IsClub.iInter_Iio aux
+  · exact (lt_ord.mp o.2).trans hcof
+  · exact fun x ↦ (ih x).isClub
 
 -- prefix intersections of `F`
 def F' : Iio (succ κ).ord → Club Ϟ := fun δ ↦ ⟨⋂ α : Iio δ, F α, sorry⟩
