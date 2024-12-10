@@ -92,6 +92,13 @@ theorem isClub_univ {α : Ordinal} (h : IsLimit α) : IsClub Set.univ α := by
 
 def univ_club {α : Ordinal} (h : IsLimit α) : Club α := ⟨Set.univ, isClub_univ h⟩
 
+theorem IsClub.isClub_of_isAcc {α β : Ordinal} {C : Set Ordinal} (h : β < α) (hC : IsClub C α)
+    (hacc : IsAcc β C) : IsClub C β := by
+  refine isClub_iff.mpr ⟨?_, ?_, ?_⟩
+  · exact fun p plt hp ↦ hC.mem_of_isAcc (plt.trans h) hp
+  · exact hacc.isLimit.pos.ne.symm
+  · exact fun p hp ↦ hacc.forall_lt p hp
+
 end ClubBasics
 
 section ClubIntersection
@@ -422,8 +429,6 @@ example (α : Ordinal) : ∃ S, S ⊆ Iio α ∧ #S = Cardinal.lift.{u + 1, u} �
 theorem exists_club_card {o : Ordinal.{u}} (h : o.IsLimit) :
     ∃ C : Club o, #C = Cardinal.lift.{u + 1, u} o.cof := sorry
 
-
-
 /-- A set of ordinals is stationary below an ordinal if it intersects every club of it. -/
 def IsStationary (S : Set Ordinal) (o : Ordinal) : Prop :=
   ∀ C, IsClub C o → (S ∩ C).Nonempty
@@ -460,37 +465,40 @@ class Assumptions where
 namespace Assumptions
 variable [assumptions : Assumptions]
 
+instance : Nonempty (Iio (succ κ).ord) := ⟨0,
+  ord_zero ▸ (ord_lt_ord.mpr <| (aleph0_pos.trans hκ).trans (lt_succ κ))⟩
+
 theorem isLimit_of_mem_S {α : S} : IsLimit α.1 := aleph0_le_cof.mp (hS α α.2 ▸ hκ).le
+
+theorem aleph0_lt_cof_Ϟ : ℵ₀ < Ϟ.cof := by
+    calc
+      ℵ₀ < κ := hκ
+      _ < succ κ := lt_succ _
+      _ < Ϟ.cof := hcof
 
 -- starting guess
 def f : (α : S) → Club α := fun _ ↦ Classical.choose <| exists_club_card isLimit_of_mem_S
 
-def restrict (E : Club Ϟ) : (α : S) → Club α := fun α ↦ if IsAcc α.1 E then
-  ⟨(f α).1 ∩ E, by
-    have := trivial
-    apply IsClub.inter sorry
-    · exact (f α).2
-    · sorry -- is club of acc point
-  ⟩
+def restrict (E : Club Ϟ) : (α : S) → Club α := fun α ↦ if h : IsAcc α.1 E then
+  ⟨(f α).1 ∩ E, IsClub.inter (hS α α.2 ▸ hκ) (f α).2 <| IsClub.isClub_of_isAcc (hSub α.2) E.2 h⟩
   else univ_club isLimit_of_mem_S
 
 def F : Iio (succ κ).ord → Club Ϟ := by
   refine @boundedRec (succ κ).ord (fun _ ↦ Club Ϟ) fun o ih ↦
     Classical.choose <| exists_club_of_not_isClubGuessing _
       ((hCont <| restrict ⟨⋂ α, ih α, ?_⟩))
-  have aux : ℵ₀ < Ϟ.cof := by
-    calc
-      ℵ₀ < κ := hκ
-      _ < succ κ := lt_succ _
-      _ < Ϟ.cof := hcof
-  apply IsClub.iInter_Iio aux
+  apply IsClub.iInter_Iio aleph0_lt_cof_Ϟ
   · exact (lt_ord.mp o.2).trans hcof
   · exact fun x ↦ (ih x).isClub
 
 -- prefix intersections of `F`
-def F' : Iio (succ κ).ord → Club Ϟ := fun δ ↦ ⟨⋂ α : Iio δ, F α, sorry⟩
+def F' : Iio (succ κ).ord → Club Ϟ := fun δ ↦ ⟨⋂ α : Iio δ, F α,
+  IsClub.iInter_Iio aleph0_lt_cof_Ϟ ((lt_ord.mp δ.2).trans hcof) fun x ↦ (F x).2⟩
 
-def E : Club Ϟ := ⟨⋂ α : Iio (succ κ).ord, F α, sorry⟩
+def E : Club Ϟ := ⟨⋂ α : Iio (succ κ).ord, F α, by
+  apply IsClub.iInter_lift aleph0_lt_cof_Ϟ fun i ↦ (F i).2
+  rw [mk_Iio_ordinal, Cardinal.lift_lift, Cardinal.lift_lt, card_ord]
+  exact hcof⟩
 
 def α : Ordinal := sorry
 
@@ -502,13 +510,13 @@ theorem isAcc_α_F' (β : Iio (succ κ).ord) : IsAcc α (F' β) :=
   isAcc_α.mono (by exact fun x hx y ⟨z, hz⟩ ↦ hx y ⟨z, hz⟩)
 
 theorem restrict_subset_α (β : Iio (succ κ).ord) : restrict (F' β) ⟨α, α_mem_S⟩ ⊆ f ⟨α, α_mem_S⟩ := by
-  rw [restrict, if_pos (isAcc_α_F' _)]
+  rw [restrict, dif_pos (isAcc_α_F' _)]
   exact inter_subset_left
 
 theorem restrict_subset_restrict {C D : Club Ϟ} (h : C ⊆ D) (ha : IsAcc α C) :
     restrict C ⟨α, α_mem_S⟩ ⊆ restrict D ⟨α, α_mem_S⟩ := by
   unfold restrict
-  rw [if_pos ha, if_pos (by exact ha.mono h)]
+  rw [dif_pos ha, dif_pos (by exact ha.mono h)]
   exact inter_subset_inter (fun _ H ↦ H) h
 
 theorem restrict_not_subset (β : Iio (succ κ).ord) :
@@ -519,7 +527,7 @@ theorem restrict_not_subset (β : Iio (succ κ).ord) :
 
 theorem restrict_subset {β γ : Iio (succ κ).ord} (h : β < γ) :
     (restrict (F' γ) ⟨α, α_mem_S⟩).carrier ⊆ (F β).carrier := by
-  rw [restrict, if_pos (isAcc_α_F' γ)]
+  rw [restrict, dif_pos (isAcc_α_F' γ)]
   refine inter_subset_right.trans ?_
   intro x xmem
   exact xmem (F β).carrier ⟨⟨β, h⟩, rfl⟩
