@@ -72,8 +72,14 @@ theorem isClub_iff {C : Set Ordinal} {o : Ordinal} : IsClub C o
 theorem IsClub.pos {C : Set Ordinal} {o : Ordinal} (h : IsClub C o) : 0 < o :=
   h.isAcc.pos
 
+theorem IsClub.ne_zero {C : Set Ordinal} {o : Ordinal} {h : IsClub C o} : o ≠ 0 :=
+  h.pos.ne.symm
+
 theorem IsClub.mem_of_isAcc {C : Set Ordinal} {o p : Ordinal} (h : IsClub C o) (hp : p < o) :
     IsAcc p C → p ∈ C := (isClub_iff.mp h).1 _ hp
+
+theorem IsClub.forall_lt {o : Ordinal} {S : Set Ordinal} (h : o.IsClub S) :
+    ∀ p < o, (S ∩ Ioo p o).Nonempty := ((isAcc_iff _ _).mp h.isAcc).2
 
 theorem IsClub.inter_Iio {C : Set Ordinal} {o : Ordinal} (h : IsClub C o) :
     IsClub (C ∩ Iio o) o := by
@@ -148,7 +154,7 @@ for any `p < o` there is a `q < o` above `p` so that `P p q`, we can construct
 an increasing `ω`-sequence below `o` that satisfies `P` between every 2 consecutive elements.
 Additionaly, the sequence can begin arbitrarily high in `o`. That is, above any `r < o`.
 -/
-theorem exists_omega_seq_succ_prop (opos : 0 < o) {P : Ordinal → Ordinal → Prop}
+theorem exists_omega0_seq_succ_prop (opos : 0 < o) {P : Ordinal → Ordinal → Prop}
     (hP : ∀ p : Iio o, ∃ q, (p < q ∧ P p q)) (r : Iio o) : ∃ f : (Iio ω) → Iio o,
     (∀ i, P (f i) (f (succ i))) ∧ (∀ i j, (i < j) → f i < f j)
     ∧ r < f ⟨0, omega0_pos⟩ := by
@@ -176,7 +182,7 @@ theorem exists_omega_seq_succ_prop (opos : 0 < o) {P : Ordinal → Ordinal → P
   rw [this, succ_Iio oLim.isSuccPrelimit]
   exact lt_succ r.1
 
-theorem exists_omega_seq_succ_prop_pos (onelto : 1 < o) {P : Ordinal → Ordinal → Prop}
+theorem exists_omega0_seq_succ_prop_pos (onelto : 1 < o) {P : Ordinal → Ordinal → Prop}
     (hP : ∀ p : Iio o, 0 < p.1 → ∃ q : Iio o, (p < q ∧ P p q)) (r : Iio o) :
     ∃ f : (Iio ω : Set Ordinal.{0}) → (Iio o), (∀ i, P (f i) (f (succ i)))
     ∧ (∀ i j, (i < j) → f i < f j) ∧ r < f ⟨0, omega0_pos⟩ := by
@@ -188,7 +194,7 @@ theorem exists_omega_seq_succ_prop_pos (onelto : 1 < o) {P : Ordinal → Ordinal
       exact Or.inl h
     convert hP p (Ordinal.pos_iff_ne_zero.mpr h) using 1
     simp_all only [false_or, P']
-  rcases exists_omega_seq_succ_prop (zero_lt_one.trans onelto) hP' r with ⟨f, hf⟩
+  rcases exists_omega0_seq_succ_prop (zero_lt_one.trans onelto) hP' r with ⟨f, hf⟩
   use f
   refine ⟨fun i ↦ ?_, hf.2⟩
   have := hf.1 i
@@ -238,7 +244,7 @@ theorem IsClub.sInter (hCof : ℵ₀ < o.cof) (hS : ∀ C ∈ S, IsClub C o) (hS
   have auxP : ∀ p : Iio o, ∃ q, p < q ∧ P p q := fun p ↦ by
     rcases exists_above_of_lt_cof p.2 nonemptyS (fun U hU ↦ (hS U hU).2) Scard with ⟨q, hq⟩
     use ⟨q, hq.1⟩, hq.2.1, hq.2.2
-  rcases exists_omega_seq_succ_prop.{u, u} oLim.pos auxP ⟨p, plto⟩ with ⟨f, hf⟩
+  rcases exists_omega0_seq_succ_prop.{u, u} oLim.pos auxP ⟨p, plto⟩ with ⟨f, hf⟩
   let sup := iSup (fun n ↦ (f n).1)
   use sup
   have suplt : sup < o := by
@@ -313,6 +319,29 @@ theorem IsClub.iInter_Iio {Ϟ o : Ordinal.{u}} {p : Iio o} {f : Iio p → Set Or
 
 end ClubIntersection
 
+theorem IsClub.derivedSet {α : Ordinal} {C : Set Ordinal} (hcof : ℵ₀ < α.cof) (h : IsClub C α) :
+    IsClub (derivedSet C) α := by
+  rw [isClub_iff]
+  refine ⟨?_, h.ne_zero, ?_⟩
+  · intro p pltα pacc
+    change IsAcc _ _
+    rw [isAcc_iff]
+    refine ⟨pacc.pos.ne.symm, ?_⟩
+    intro q qltp
+    obtain ⟨x, hx⟩ := pacc.forall_lt q qltp
+    exact ⟨x, ⟨h.mem_of_isAcc (hx.2.2.trans pltα) hx.1, hx.2⟩⟩
+  · intro p pltα
+    obtain ⟨f, hf⟩ := exists_omega0_seq_succ_prop.{_, 0} (bot_lt_of_lt pltα) (P := fun _ _ ↦ True)
+      (fun p ↦ by
+        obtain ⟨x, hx⟩ := h.forall_lt p p.2
+        exact ⟨⟨x, hx.2.2⟩, ⟨hx.2.1, trivial⟩⟩)
+      ⟨p, pltα⟩
+    use iSup (fun x ↦ f x)
+    constructor
+    · sorry
+    · sorry -- line 251, generalize?
+
+
 def diagInter {o : Ordinal} (c : Iio o → Set Ordinal) : Set Ordinal :=
   {p | ∀ r : Iio o, r < p → p ∈ c r}
 
@@ -359,7 +388,7 @@ theorem isAcc_diagInter {κ : Cardinal.{u}} (hκ : ℵ₀ < κ) (hreg : κ.IsReg
     · exact hx.2.1
     · exact fun s slt ↦ mem_iInter.mp hx.1 ⟨s.1, slt⟩
   intro p plt
-  obtain ⟨f, hf⟩ := exists_omega_seq_succ_prop_pos (one_lt_omega0.trans (lt_ord.mpr hκ))
+  obtain ⟨f, hf⟩ := exists_omega0_seq_succ_prop_pos (one_lt_omega0.trans (lt_ord.mpr hκ))
     auxP ⟨p, plt⟩
   use ⨆ i, f i
   have ltκ : ⨆ i, (f i).1 < κ.ord := by
@@ -433,11 +462,16 @@ theorem exists_club_card {o : Ordinal.{u}} (h : o.IsLimit) :
 def IsStationary (S : Set Ordinal) (o : Ordinal) : Prop :=
   ∀ C, IsClub C o → (S ∩ C).Nonempty
 
-theorem IsStationary.inter_Iio {S : Set Ordinal} {o : Ordinal} (hS : IsStationary S o) :
+theorem IsStationary.inter_Iio {o : Ordinal} {S : Set Ordinal} (hS : IsStationary S o) :
     IsStationary (S ∩ Iio o) o := by
   intro C hC
   convert hS _ hC.inter_Iio using 1
   rw [inter_comm C, inter_assoc]
+
+theorem IsStationary.inter_isClub {o : Ordinal} {S C : Set Ordinal} (hS : IsStationary S o)
+    (hC : IsClub C o) : (S ∩ C ∩ (Iio o)).Nonempty := by
+  have := hS.inter_Iio C hC
+  rwa [inter_assoc, inter_comm C, ← inter_assoc]
 
 def IsClubGuessing {S : Set Ordinal} (f : (α : S) → Club α) (γ : Ordinal) : Prop :=
   ∀ C : Club γ, ∃ δ, (f δ).carrier ⊆ C.carrier
@@ -500,40 +534,43 @@ def E : Club Ϟ := ⟨⋂ α : Iio (succ κ).ord, F α, by
   rw [mk_Iio_ordinal, Cardinal.lift_lift, Cardinal.lift_lt, card_ord]
   exact hcof⟩
 
-def α : Ordinal := sorry
+def α : S := by
+  have : Set.Nonempty _ := hStat.inter_isClub (E.2.derivedSet aleph0_lt_cof_Ϟ)
+  exact ⟨Classical.choose this, (Classical.choose_spec this).1.1⟩
 
-theorem isAcc_α : IsAcc α E := sorry
-
-theorem α_mem_S : α ∈ S := sorry
+theorem isAcc_α : IsAcc α E := by
+  unfold α
+  generalize_proofs pf
+  exact (Classical.choose_spec pf).1.2
 
 theorem isAcc_α_F' (β : Iio (succ κ).ord) : IsAcc α (F' β) :=
   isAcc_α.mono (by exact fun x hx y ⟨z, hz⟩ ↦ hx y ⟨z, hz⟩)
 
-theorem restrict_subset_α (β : Iio (succ κ).ord) : restrict (F' β) ⟨α, α_mem_S⟩ ⊆ f ⟨α, α_mem_S⟩ := by
+theorem restrict_subset_α (β : Iio (succ κ).ord) : restrict (F' β) α ⊆ f α := by
   rw [restrict, dif_pos (isAcc_α_F' _)]
   exact inter_subset_left
 
 theorem restrict_subset_restrict {C D : Club Ϟ} (h : C ⊆ D) (ha : IsAcc α C) :
-    restrict C ⟨α, α_mem_S⟩ ⊆ restrict D ⟨α, α_mem_S⟩ := by
+    restrict C α ⊆ restrict D α := by
   unfold restrict
   rw [dif_pos ha, dif_pos (by exact ha.mono h)]
   exact inter_subset_inter (fun _ H ↦ H) h
 
 theorem restrict_not_subset (β : Iio (succ κ).ord) :
-    ¬ (restrict (F' β) ⟨α, α_mem_S⟩).carrier ⊆ (F β).carrier := by
+    ¬ (restrict (F' β) α).carrier ⊆ (F β).carrier := by
   rw [F, boundedRec_eq]
-  generalize_proofs _ _ _ _ pf
-  exact choose_spec pf ⟨α, α_mem_S⟩
+  generalize_proofs _ _ _ pf
+  exact choose_spec pf α
 
 theorem restrict_subset {β γ : Iio (succ κ).ord} (h : β < γ) :
-    (restrict (F' γ) ⟨α, α_mem_S⟩).carrier ⊆ (F β).carrier := by
+    (restrict (F' γ) α).carrier ⊆ (F β).carrier := by
   rw [restrict, dif_pos (isAcc_α_F' γ)]
   refine inter_subset_right.trans ?_
   intro x xmem
   exact xmem (F β).carrier ⟨⟨β, h⟩, rfl⟩
 
 theorem restrict_ssubset_restrict {β γ : Iio (succ κ).ord} (h : β < γ) :
-    restrict (F' γ) ⟨α, α_mem_S⟩ ⊂ restrict (F' β) ⟨α, α_mem_S⟩ := by
+    restrict (F' γ) α ⊂ restrict (F' β) α := by
   rw [ssubset_iff_subset_ne]
   constructor
   · apply restrict_subset_restrict
@@ -542,17 +579,17 @@ theorem restrict_ssubset_restrict {β γ : Iio (succ κ).ord} (h : β < γ) :
   · exact fun heq ↦ restrict_not_subset β (heq ▸ (restrict_subset h))
 
 theorem contradiction : False := by
-  have : Cardinal.lift.{u, u + 1} #(f ⟨α, α_mem_S⟩).carrier
+  have : Cardinal.lift.{u, u + 1} #(f α).carrier
       < Cardinal.lift.{u + 1, u} (succ κ).ord.card := by
-    have : #↑(f ⟨α, α_mem_S⟩).carrier = Cardinal.lift.{u + 1, u} κ := by
+    have : #↑(f α).carrier = Cardinal.lift.{u + 1, u} κ := by
       unfold f
-      generalize_proofs pf pf'
-      convert choose_spec pf'
-      exact (hS α pf).symm
+      generalize_proofs pf
+      convert choose_spec pf
+      exact (hS α α.2).symm
     rw [card_ord, this, Cardinal.lift_lift, Cardinal.lift_lt]
     exact lt_succ κ
   apply not_exists_ssubset_chain_lift this
-  use fun x ↦ restrict (F' x) ⟨α, α_mem_S⟩
+  use fun x ↦ restrict (F' x) α
   constructor
   · exact restrict_subset_α
   · exact fun β γ ↦ restrict_ssubset_restrict
