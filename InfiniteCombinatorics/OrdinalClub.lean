@@ -212,7 +212,7 @@ theorem exists_omega0_seq_succ_prop_pos (onelto : 1 < o) {P : Ordinal → Ordina
   then the supremum of the sequence is an accumulation point of `C`. -/
 theorem isAcc_iSup_of_between {δ : Ordinal.{u}} (C : Set Ordinal) (δLim : δ.IsLimit)
     (s : Iio δ → Ordinal.{max u v}) (sInc : ∀ o, s o < s (succ o))
-    (h : ∀ o, (C ∩ (Ioo (s o) (s (succ o)))).Nonempty) :
+    (h : ∀ o, (C ∩ (Icc (s o) (s (succ o)))).Nonempty) :
     IsAcc (iSup s) C := by
   rw [isAcc_iff]
   constructor
@@ -226,9 +226,9 @@ theorem isAcc_iSup_of_between {δ : Ordinal.{u}} (C : Set Ordinal) (δLim : δ.I
   obtain ⟨r, hr⟩ := hp
   obtain ⟨q, hq⟩ := h r
   use q
-  refine ⟨hq.1, ⟨hr.trans hq.2.1, ?_⟩⟩
+  refine ⟨hq.1, ⟨hr.trans_le hq.2.1, ?_⟩⟩
   rw [Ordinal.lt_iSup_iff]
-  exact ⟨succ r, hq.2.2⟩
+  exact ⟨succ (succ r), hq.2.2.trans_lt (sInc (succ r))⟩
 
 /--
 The intersection of less than `o.cof` clubs in `o` is a club in `o`.
@@ -248,11 +248,8 @@ theorem IsClub.sInter (hCof : ℵ₀ < o.cof) (hS : ∀ C ∈ S, IsClub C o) (hS
   let sup := iSup (fun n ↦ (f n).1)
   use sup
   have suplt : sup < o := by
-    apply iSup_lt_ord_lift'
-    · rw [mk_Iio_ordinal, card_omega0, lift_aleph0, lift_aleph0]
-      exact aleph0_lt_lift.mpr hCof
-    intro n
-    exact (f n).2
+    apply iSup_Iio_lt_ord (fun n ↦ (f n).2)
+    rwa [Cardinal.lift_id, Cardinal.lift_id, card_omega0]
   constructor
   · intro s hs
     apply (hS s hs).1.forall_lt sup suplt
@@ -266,8 +263,8 @@ theorem IsClub.sInter (hCof : ℵ₀ < o.cof) (hS : ∀ C ∈ S, IsClub C o) (hS
         · exact lt_succ n.1
         exact isLimit_omega0.succ_lt n.2
     · intro n
-      have := hf.1 n s hs
-      exact this
+      apply (hf.1 n s hs).mono
+      exact inter_subset_inter_right _ Ioo_subset_Icc_self
   · constructor
     · rw [Ordinal.lt_iSup_iff]
       exact ⟨⟨0, omega0_pos⟩, hf.2.2⟩
@@ -319,7 +316,8 @@ theorem IsClub.iInter_Iio {Ϟ o : Ordinal.{u}} {p : Iio o} {f : Iio p → Set Or
 
 end ClubIntersection
 
-theorem IsClub.derivedSet {α : Ordinal} {C : Set Ordinal} (hcof : ℵ₀ < α.cof) (h : IsClub C α) :
+/- Accumulation points of a club form a club. -/
+theorem IsClub.derivedSet {α : Ordinal.{u}} {C : Set Ordinal} (hcof : ℵ₀ < α.cof) (h : IsClub C α) :
     IsClub (derivedSet C) α := by
   rw [isClub_iff]
   refine ⟨?_, h.ne_zero, ?_⟩
@@ -331,16 +329,24 @@ theorem IsClub.derivedSet {α : Ordinal} {C : Set Ordinal} (hcof : ℵ₀ < α.c
     obtain ⟨x, hx⟩ := pacc.forall_lt q qltp
     exact ⟨x, ⟨h.mem_of_isAcc (hx.2.2.trans pltα) hx.1, hx.2⟩⟩
   · intro p pltα
-    obtain ⟨f, hf⟩ := exists_omega0_seq_succ_prop.{_, 0} (bot_lt_of_lt pltα) (P := fun _ _ ↦ True)
+    obtain ⟨f, hf⟩ := exists_omega0_seq_succ_prop.{_, 0} (bot_lt_of_lt pltα) (P := fun _ x ↦ x ∈ C)
       (fun p ↦ by
         obtain ⟨x, hx⟩ := h.forall_lt p p.2
-        exact ⟨⟨x, hx.2.2⟩, ⟨hx.2.1, trivial⟩⟩)
+        exact ⟨⟨x, hx.2.2⟩, ⟨hx.2.1, hx.1⟩⟩)
       ⟨p, pltα⟩
     use iSup (fun x ↦ f x)
     constructor
-    · sorry
-    · sorry -- line 251, generalize?
-
+    · apply isAcc_iSup (o := ω) (α := ⟨0, omega0_pos⟩) isLimit_omega0
+      · exact hf.2.1
+      · intro n h
+        convert hf.1 ⟨pred n, (pred_le_self n.1).trans_lt n.2⟩
+        rw [succ_Iio isLimit_omega0.isSuccPrelimit]
+        apply SetCoe.ext
+        exact (succ_pred_of_finite (bot_lt_of_lt h) n.2).symm
+    · constructor
+      · exact (lt_ciSup_iff (bddAbove_of_small _)).mpr ⟨⟨0, omega0_pos⟩, hf.2.2⟩
+      · apply iSup_Iio_lt_ord (fun i ↦ (f i).2)
+        rwa [card_omega0, lift_aleph0, Cardinal.lift_id']
 
 def diagInter {o : Ordinal} (c : Iio o → Set Ordinal) : Set Ordinal :=
   {p | ∀ r : Iio o, r < p → p ∈ c r}
@@ -439,13 +445,6 @@ end DiagonalIntersection
 
 theorem type_Iio (α : Ordinal.{u}) : type (· < · : Iio α → Iio α → Prop) = lift.{u + 1} α := by
   sorry
-
-theorem not_exists_ssubset_chain_lift {α : Type u} {S : Set α} {ℓ : Ordinal.{v}}
-    (h : Cardinal.lift.{v, u} #S < Cardinal.lift.{u, v} ℓ.card) :
-    ¬ ∃ f : Iio ℓ → Set α, (∀ o, f o ⊆ S) ∧ (∀ o p, o < p → f p ⊂ f o) := by
-  sorry
-
-
 
 -- what?
 example (α : Ordinal) : ∃ S, S ⊆ Iio α ∧ #S = Cardinal.lift.{u + 1, u} α.cof := by
@@ -588,7 +587,7 @@ theorem contradiction : False := by
       exact (hS α α.2).symm
     rw [card_ord, this, Cardinal.lift_lift, Cardinal.lift_lt]
     exact lt_succ κ
-  apply not_exists_ssubset_chain_lift this
+  apply not_exists_ssubset_chain_lift (isLimit_ord (hκ.trans (lt_succ κ)).le) this
   use fun x ↦ restrict (F' x) α
   constructor
   · exact restrict_subset_α
