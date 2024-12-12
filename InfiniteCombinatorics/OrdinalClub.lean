@@ -443,16 +443,62 @@ theorem IsClub.diagInter {κ : Cardinal.{u}} (hκ : ℵ₀ < κ) (hreg : κ.IsRe
 
 end DiagonalIntersection
 
-theorem type_Iio (α : Ordinal.{u}) : type (· < · : Iio α → Iio α → Prop) = lift.{u + 1} α := by
-  sorry
-
--- what?
-example (α : Ordinal) : ∃ S, S ⊆ Iio α ∧ #S = Cardinal.lift.{u + 1, u} α.cof := by
+theorem exists_unbounded_Iio_cof {α : Ordinal} (hlim : IsLimit α) : ∃ S, S ⊆ Iio α ∧ IsAcc α S
+    ∧ #S = Cardinal.lift.{u + 1, u} α.cof := by
   obtain ⟨S, hUnb, hCard⟩ := @Ordinal.cof_eq (Iio α) (· < ·) _
   use S
-  constructor
+  constructor <;> try constructor
   · exact Subtype.coe_image_subset (Iio α) S
-  · rw [Cardinal.mk_image_eq Subtype.val_injective, hCard, lift_cof, type_Iio α]
+  · rw [isAcc_iff]
+    refine ⟨hlim.pos.ne.symm, ?_⟩
+    intro β βltα
+    obtain ⟨x, hx⟩ := hUnb ⟨succ β, hlim.succ_lt βltα⟩
+    exact ⟨x, ⟨⟨x, ⟨hx.1, rfl⟩⟩, ⟨succ_le_iff.mp (not_lt.mp hx.2), x.2⟩⟩⟩
+  · rw [Cardinal.mk_image_eq Subtype.val_injective, hCard, lift_cof, type_Iio]
+
+theorem mk_derivedSet_le {S : Set Ordinal.{u}} : #(derivedSet S) ≤ #S := by
+  by_cases hS : S.Finite
+  · exact mk_le_mk_of_subset <| (isClosed_iff_derivedSet_subset _).mp hS.isClosed
+  /- `f` sends each accumulation point of `S` to the smallest element of `S` above it,
+  if it exists. This is an injection from the accumulation points to `Option S`. -/
+  let f : derivedSet S → Option S := fun δ ↦ if h : (S ∩ Ioi δ).Nonempty then
+    some ⟨sInf (S ∩ Ioi δ.1), inter_subset_left (csInf_mem h)⟩
+    else none
+  suffices hf : Function.Injective f by
+    convert mk_le_of_injective hf using 1
+    rw [mk_option]
+    refine (add_one_of_aleph0_le ?_).symm
+    exact infinite_iff.mp (infinite_coe_iff.mpr hS)
+  intro a b hab
+  by_cases hemp : ¬(S ∩ Ioi a.1).Nonempty ∨ ¬(S ∩ Ioi b.1).Nonempty
+  · wlog ha : ¬(S ∩ Ioi a.1).Nonempty
+    · have aux : ¬(S ∩ Ioi b.1).Nonempty := by tauto
+      exact (this hS hab.symm (Or.inl aux) aux).symm
+    unfold f at hab
+    rw [dif_neg ha] at hab
+    split_ifs at hab with hb
+    refine ((lt_trichotomy a b).resolve_left ?_).resolve_right ?_
+    · intro altb
+      obtain ⟨x, hx⟩ := IsAcc.forall_lt b.2 a altb
+      exact ha ⟨x, ⟨hx.1, hx.2.1⟩⟩
+    · intro blta
+      obtain ⟨x, hx⟩ := IsAcc.forall_lt a.2 b blta
+      exact hb ⟨x, ⟨hx.1, hx.2.1⟩⟩
+  push_neg at hemp
+  unfold f at hab
+  rw [dif_pos hemp.1, dif_pos hemp.2, Option.some_inj] at hab
+  by_contra! h
+  wlog altb : a < b
+  · exact this hS (And.comm.mp hemp) hab.symm h.symm
+      ((not_lt_iff_eq_or_lt.mp altb).resolve_left h)
+  have blt : b ≤ sInf (S ∩ Ioi b) := le_csInf hemp.2 fun _ ⟨_, h⟩ ↦ h.le
+  have ltb : sInf (S ∩ Ioi a) < b := by
+    obtain ⟨x, hx⟩ := IsAcc.forall_lt b.2 a altb
+    exact csInf_lt_of_lt (a := x) (OrderBot.bddBelow _) ⟨hx.1, hx.2.1⟩ hx.2.2
+  have : sInf (S ∩ Ioi a) = sInf (S ∩ Ioi b) :=
+    congrArg Subtype.val hab
+  rw [← this] at blt
+  exact blt.not_lt ltb
 
 theorem exists_club_card {o : Ordinal.{u}} (h : o.IsLimit) :
     ∃ C : Club o, #C = Cardinal.lift.{u + 1, u} o.cof := sorry

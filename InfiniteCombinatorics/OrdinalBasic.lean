@@ -27,3 +27,11 @@ theorem succ_pred_of_finite {o : Ordinal} (h : 0 < o) (h' : o < ω) : succ o.pre
     (fun o h ↦ False.elim ((omega0_le_of_isLimit h).not_lt o.2))
   simp only [if_true_right, h, true_implies] at this
   exact this
+
+theorem type_Iio (α : Ordinal.{u}) : type (· < · : Iio α → Iio α → Prop) = lift.{u + 1} α := by
+  have inst : IsWellOrder _ (· < · : α.toType → α.toType → Prop) := isWellOrder_lt
+  have := (enumIsoToType α).toRelIsoLT.ordinal_lift_type_eq
+  rw [lift_id'.{u, u + 1}] at this
+  rw [this]
+  congr
+  exact type_toType α
