@@ -456,7 +456,7 @@ theorem exists_unbounded_Iio_cof {α : Ordinal} (hlim : IsLimit α) : ∃ S, S �
     exact ⟨x, ⟨⟨x, ⟨hx.1, rfl⟩⟩, ⟨succ_le_iff.mp (not_lt.mp hx.2), x.2⟩⟩⟩
   · rw [Cardinal.mk_image_eq Subtype.val_injective, hCard, lift_cof, type_Iio]
 
-theorem mk_derivedSet_le {S : Set Ordinal.{u}} : #(derivedSet S) ≤ #S := by
+theorem mk_derivedSet_le (S : Set Ordinal) : #(derivedSet S) ≤ #S := by
   by_cases hS : S.Finite
   · exact mk_le_mk_of_subset <| (isClosed_iff_derivedSet_subset _).mp hS.isClosed
   /- `f` sends each accumulation point of `S` to the smallest element of `S` above it,
@@ -473,7 +473,7 @@ theorem mk_derivedSet_le {S : Set Ordinal.{u}} : #(derivedSet S) ≤ #S := by
   by_cases hemp : ¬(S ∩ Ioi a.1).Nonempty ∨ ¬(S ∩ Ioi b.1).Nonempty
   · wlog ha : ¬(S ∩ Ioi a.1).Nonempty
     · have aux : ¬(S ∩ Ioi b.1).Nonempty := by tauto
-      exact (this hS hab.symm (Or.inl aux) aux).symm
+      exact (this S hS hab.symm (Or.inl aux) aux).symm
     unfold f at hab
     rw [dif_neg ha] at hab
     split_ifs at hab with hb
@@ -489,7 +489,7 @@ theorem mk_derivedSet_le {S : Set Ordinal.{u}} : #(derivedSet S) ≤ #S := by
   rw [dif_pos hemp.1, dif_pos hemp.2, Option.some_inj] at hab
   by_contra! h
   wlog altb : a < b
-  · exact this hS (And.comm.mp hemp) hab.symm h.symm
+  · exact this S hS (And.comm.mp hemp) hab.symm h.symm
       ((not_lt_iff_eq_or_lt.mp altb).resolve_left h)
   have blt : b ≤ sInf (S ∩ Ioi b) := le_csInf hemp.2 fun _ ⟨_, h⟩ ↦ h.le
   have ltb : sInf (S ∩ Ioi a) < b := by
@@ -500,8 +500,34 @@ theorem mk_derivedSet_le {S : Set Ordinal.{u}} : #(derivedSet S) ≤ #S := by
   rw [← this] at blt
   exact blt.not_lt ltb
 
+theorem isClosedBelow_derivedSet {S : Set Ordinal} :
+    ∀ o, IsClosedBelow (S ∪ (derivedSet S)) o := fun o ↦ by
+  rw [isClosedBelow_iff]
+  intro p plto pacc
+  right
+  apply (isAcc_iff _ _).mpr
+  refine ⟨(IsAcc.pos pacc).ne.symm, ?_⟩
+  intro q qltp
+  obtain ⟨x, hx⟩ := IsAcc.forall_lt pacc q qltp
+  cases' hx.1 with xs xds
+  · exact ⟨x, ⟨xs, hx.2⟩⟩
+  obtain ⟨y, hy⟩ := IsAcc.forall_lt xds q hx.2.1
+  exact ⟨y, ⟨hy.1, ⟨hy.2.1, hy.2.2.trans hx.2.2⟩⟩⟩
+
 theorem exists_club_card {o : Ordinal.{u}} (h : o.IsLimit) :
-    ∃ C : Club o, #C = Cardinal.lift.{u + 1, u} o.cof := sorry
+    ∃ C : Club o, #C = Cardinal.lift.{u + 1, u} o.cof := by
+  obtain ⟨S, hS⟩ := exists_unbounded_Iio_cof h
+  let C := S ∪ (derivedSet S)
+  use ⟨C, ⟨isClosedBelow_derivedSet o, hS.2.1.mono subset_union_left⟩⟩
+  apply (hS.2.2 ▸ mk_le_mk_of_subset subset_union_left).antisymm'
+  calc
+    #C ≤ #S + #(derivedSet S) := mk_union_le _ _
+    _ ≤ #S + #S := add_le_add_left (mk_derivedSet_le S) _
+    _ = max #S #S := add_eq_max <| by
+      rw [hS.2.2, ← lift_aleph0.{u + 1, u}, Cardinal.lift_le]
+      exact aleph0_le_cof.mpr h
+    _ = #S := max_self _
+    _ = Cardinal.lift.{u + 1, u} o.cof := hS.2.2
 
 /-- A set of ordinals is stationary below an ordinal if it intersects every club of it. -/
 def IsStationary (S : Set Ordinal) (o : Ordinal) : Prop :=
@@ -530,7 +556,7 @@ theorem exists_club_of_not_isClubGuessing {S : Set Ordinal} {γ : Ordinal} (f : 
 section ClubGuessing
 namespace ClubGuessing
 
-class Assumptions where
+private class Assumptions where
   Ϟ : Ordinal.{u}
   κ : Cardinal.{u}
   hκ : ℵ₀ < κ
@@ -640,14 +666,15 @@ theorem contradiction : False := by
   · exact fun β γ ↦ restrict_ssubset_restrict
 
 end Assumptions
+end ClubGuessing
 
 theorem exists_club_guessing_of_cof {Ϟ : Ordinal} {κ : Cardinal} (hκ : ℵ₀ < κ)
     (hcof : succ κ < Ϟ.cof) {S : Set Ordinal} (hStat : IsStationary S Ϟ)
     (hS : ∀ α ∈ S, α.cof = κ) : ∃ f : (α : S) → Club α, IsClubGuessing f Ϟ := by
   by_contra! h
-  have : Assumptions := ⟨Ϟ, κ, hκ, hcof, S ∩ Iio Ϟ, hStat.inter_Iio, inter_subset_right,
+  have : ClubGuessing.Assumptions := ⟨Ϟ, κ, hκ, hcof, S ∩ Iio Ϟ, hStat.inter_Iio, inter_subset_right,
     (fun _ ⟨h, _⟩ ↦ hS _ h), ?_⟩
-  exact Assumptions.contradiction
+  exact ClubGuessing.Assumptions.contradiction
   · intro f hf
     let g : (α : S) → (Club α) := fun α ↦ if hα : α.1 ∈ (Iio Ϟ) then (f ⟨α.1, ⟨α.2, hα⟩⟩) else
       univ_club (aleph0_le_cof.mp (hS α α.2 ▸ hκ).le)
