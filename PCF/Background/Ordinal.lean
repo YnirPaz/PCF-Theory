@@ -1,4 +1,4 @@
-import Mathlib
+import Mathlib.SetTheory.Ordinal.Arithmetic
 
 noncomputable section
 
@@ -7,6 +7,8 @@ universe u v w
 open Set Order Cardinal
 
 namespace Ordinal
+
+instance : Nonempty (Iio omega0.{u}) := ⟨0, omega0_pos⟩
 
 theorem coe_succ_Iio {α : Type*} [PartialOrder α] [SuccOrder α] {a : α} (h : IsSuccPrelimit a)
     {x : Iio a} : (succ x).1 = succ x.1 := by
@@ -18,17 +20,6 @@ theorem coe_succ_Iio {α : Type*} [PartialOrder α] [SuccOrder α] {a : α} (h :
 theorem succ_Iio {α : Type*} [PartialOrder α] [SuccOrder α] {a : α} (h : IsSuccPrelimit a)
     {x : Iio a} : succ x = ⟨succ x.1, h.succ_lt x.2⟩ :=
   Subtype.val_inj.mp <| coe_succ_Iio h
-
-/-
-theorem coe_succ_Iio {o : Ordinal} (h : o.IsLimit) {α : Iio o} : (succ α).1 = succ α.1 := by
-  apply coe_succ_of_mem
-  have := Subtype.mem α
-  rw [mem_Iio] at this ⊢
-  exact h.succ_lt this
-
-theorem succ_Iio {o : Ordinal} (h : o.IsLimit) {α : Iio o} : succ α = ⟨α.1 + 1, h.succ_lt α.2⟩ :=
-  Subtype.val_inj.mp <| coe_succ_Iio h
--/
 
 -- #19189
 /-- The order isomorphism between ℕ and the first ω ordinals. -/
@@ -130,3 +121,34 @@ theorem not_exists_ssubset_chain_lift {α : Type u} {S : Set α} {ℓ : Ordinal.
   · intro ho
     have : succ j ≤ i := succ_le_of_lt ho
     exact spec'.2 <| hsub _ _ this spec.1
+
+theorem mk_Iio_subtype {o : Ordinal} {p : Iio o} : #(Iio p) = #(Iio p.1) := by
+  apply mk_congr
+  let f : Iio p → Iio p.1 := fun ⟨x, h⟩ ↦ ⟨x, h⟩
+  let g : Iio p.1 → Iio p := fun ⟨x, h⟩ ↦ ⟨⟨x,
+    have : p.1 < o := p.2
+    have := h.trans this
+    this⟩, h⟩
+  exact ⟨f, g, congrFun rfl, congrFun rfl⟩
+
+theorem two_lt_aleph0 : 2 < ℵ₀ := nat_lt_aleph0 2
+
+theorem succ_pred_of_finite {o : Ordinal} (h : 0 < o) (h' : o < ω) : succ o.pred = o := by
+  have := @boundedLimitRecOn ω isLimit_omega0
+    (fun n ↦ if 0 < n.1 then succ n.1.pred = n else True) ⟨o, h'⟩
+    (by simp)
+    (by simp)
+    (fun o h ↦ False.elim ((omega0_le_of_isLimit h).not_lt o.2))
+  simp only [if_true_right, h, true_implies] at this
+  exact this
+
+theorem type_Iio (α : Ordinal.{u}) : type (· < · : Iio α → Iio α → Prop) = lift.{u + 1} α := by
+  have inst : IsWellOrder _ (· < · : α.toType → α.toType → Prop) := isWellOrder_lt
+  have := (enumIsoToType α).toRelIsoLT.ordinal_lift_type_eq
+  rw [lift_id'.{u, u + 1}] at this
+  rw [this]
+  congr
+  exact type_toType α
+
+theorem isLimit_iff' {o : Ordinal} : IsLimit o ↔ o ≠ 0 ∧ ∀ x < o, succ x < o := by
+  rw [isLimit_iff, isSuccPrelimit_iff_succ_lt]

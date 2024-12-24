@@ -1,13 +1,5 @@
-/-
-Copyright (c) 2024 Nir Paz. All rights reserved.
-Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Nir Paz
--/
-import Mathlib.SetTheory.Cardinal.Cofinality
-import Mathlib.SetTheory.Ordinal.Topology
-import PCF.OrdinalArithmetic
-import PCF.OrdinalTopology
-import PCF.CardinalCofinality
+import PCF.Background.Cofinality
+import PCF.Background.Topology
 
 /-!
 # Club and stationary sets
@@ -27,8 +19,9 @@ This file sets up the basic theory of clubs (closed and unbounded sets) and stat
 -/
 
 noncomputable section
+open Classical
 
-open Classical Cardinal Set Order Filter
+open Cardinal Set Order Filter
 
 universe u v
 
@@ -457,67 +450,6 @@ theorem exists_unbounded_Iio_cof {α : Ordinal} (hlim : IsLimit α) : ∃ S, S �
     exact ⟨x, ⟨⟨x, ⟨hx.1, rfl⟩⟩, ⟨succ_le_iff.mp (not_lt.mp hx.2), x.2⟩⟩⟩
   · rw [Cardinal.mk_image_eq Subtype.val_injective, hCard, lift_cof, type_Iio]
 
-theorem mk_derivedSet_le (S : Set Ordinal) : #(derivedSet S) ≤ #S := by
-  by_cases hS : S.Finite
-  · exact mk_le_mk_of_subset <| (isClosed_iff_derivedSet_subset _).mp hS.isClosed
-  /- `f` sends each accumulation point of `S` to the smallest element of `S` above it,
-  if it exists. This is an injection from the accumulation points to `Option S`. -/
-  let f : derivedSet S → Option S := fun δ ↦ if h : (S ∩ Ioi δ).Nonempty then
-    some ⟨sInf (S ∩ Ioi δ.1), inter_subset_left (csInf_mem h)⟩
-    else none
-  suffices hf : Function.Injective f by
-    convert mk_le_of_injective hf using 1
-    rw [mk_option]
-    refine (add_one_of_aleph0_le ?_).symm
-    exact infinite_iff.mp (infinite_coe_iff.mpr hS)
-  intro a b hab
-  by_cases hemp : ¬(S ∩ Ioi a.1).Nonempty ∨ ¬(S ∩ Ioi b.1).Nonempty
-  · wlog ha : ¬(S ∩ Ioi a.1).Nonempty
-    · have aux : ¬(S ∩ Ioi b.1).Nonempty := by tauto
-      exact (this S hS hab.symm (Or.inl aux) aux).symm
-    unfold f at hab
-    rw [dif_neg ha] at hab
-    split_ifs at hab with hb
-    refine ((lt_trichotomy a b).resolve_left ?_).resolve_right ?_
-    · intro altb
-      obtain ⟨x, hx⟩ := IsAcc.forall_lt b.2 a altb
-      exact ha ⟨x, ⟨hx.1, hx.2.1⟩⟩
-    · intro blta
-      obtain ⟨x, hx⟩ := IsAcc.forall_lt a.2 b blta
-      exact hb ⟨x, ⟨hx.1, hx.2.1⟩⟩
-  push_neg at hemp
-  unfold f at hab
-  rw [dif_pos hemp.1, dif_pos hemp.2, Option.some_inj] at hab
-  by_contra! h
-  sorry -- wlog bug, should be fixed soon
-  /-
-  wlog altb : a < b
-  · exact this S hS (And.comm.mp hemp) hab.symm h.symm
-      ((not_lt_iff_eq_or_lt.mp altb).resolve_left h)
-  have blt : b ≤ sInf (S ∩ Ioi b) := le_csInf hemp.2 fun _ ⟨_, h⟩ ↦ h.le
-  have ltb : sInf (S ∩ Ioi a) < b := by
-    obtain ⟨x, hx⟩ := IsAcc.forall_lt b.2 a altb
-    exact csInf_lt_of_lt (a := x) (OrderBot.bddBelow _) ⟨hx.1, hx.2.1⟩ hx.2.2
-  have : sInf (S ∩ Ioi a) = sInf (S ∩ Ioi b) :=
-    congrArg Subtype.val hab
-  rw [← this] at blt
-  exact blt.not_lt ltb
-  -/
-
-theorem isClosedBelow_derivedSet {S : Set Ordinal} :
-    ∀ o, IsClosedBelow (S ∪ (derivedSet S)) o := fun o ↦ by
-  rw [isClosedBelow_iff]
-  intro p plto pacc
-  right
-  apply (isAcc_iff _ _).mpr
-  refine ⟨(IsAcc.pos pacc).ne.symm, ?_⟩
-  intro q qltp
-  obtain ⟨x, hx⟩ := IsAcc.forall_lt pacc q qltp
-  cases' hx.1 with xs xds
-  · exact ⟨x, ⟨xs, hx.2⟩⟩
-  obtain ⟨y, hy⟩ := IsAcc.forall_lt xds q hx.2.1
-  exact ⟨y, ⟨hy.1, ⟨hy.2.1, hy.2.2.trans hx.2.2⟩⟩⟩
-
 theorem exists_club_card {o : Ordinal.{u}} (h : o.IsLimit) :
     ∃ C : Club o, #C = Cardinal.lift.{u + 1, u} o.cof := by
   obtain ⟨S, hS⟩ := exists_unbounded_Iio_cof h
@@ -547,146 +479,3 @@ theorem IsStationary.inter_isClub {o : Ordinal} {S C : Set Ordinal} (hS : IsStat
     (hC : IsClub C o) : (S ∩ C ∩ (Iio o)).Nonempty := by
   have := hS.inter_Iio C hC
   rwa [inter_assoc, inter_comm C, ← inter_assoc]
-
-def IsClubGuessing {S : Set Ordinal} (f : (α : S) → Club α) (γ : Ordinal) : Prop :=
-  ∀ C : Club γ, ∃ δ, (f δ).carrier ⊆ C.carrier
-
-theorem exists_club_of_not_isClubGuessing {S : Set Ordinal} {γ : Ordinal} (f : (α : S) → Club α)
-    (h : ¬ IsClubGuessing f γ) : ∃ C : Club γ, ∀ δ, ¬ (f δ).carrier ⊆ C := by
-  dsimp [IsClubGuessing] at h
-  push_neg at h
-  exact h
-
-section ClubGuessing
-namespace ClubGuessing
-
-private class Assumptions where
-  Ϟ : Ordinal.{u}
-  κ : Cardinal.{u}
-  hκ : ℵ₀ < κ
-  hcof : succ κ < Ϟ.cof
-  S : Set Ordinal.{u}
-  hStat : IsStationary S Ϟ
-  hSub : S ⊆ Iio Ϟ
-  hS : ∀ α ∈ S, α.cof = κ
-  hCont : ∀ f : (α : S) → Club.{u} α, ¬ IsClubGuessing f Ϟ
-
-namespace Assumptions
-variable [assumptions : Assumptions]
-
-instance : Nonempty (Iio (succ κ).ord) := ⟨0,
-  ord_zero ▸ (ord_lt_ord.mpr <| (aleph0_pos.trans hκ).trans (lt_succ κ))⟩
-
-theorem isLimit_of_mem_S {α : S} : IsLimit α.1 := aleph0_le_cof.mp (hS α α.2 ▸ hκ).le
-
-theorem aleph0_lt_cof_Ϟ : ℵ₀ < Ϟ.cof := by
-    calc
-      ℵ₀ < κ := hκ
-      _ < succ κ := lt_succ _
-      _ < Ϟ.cof := hcof
-
--- starting guess
-def f : (α : S) → Club α := fun _ ↦ Classical.choose <| exists_club_card isLimit_of_mem_S
-
-def restrict (E : Club Ϟ) : (α : S) → Club α := fun α ↦ if h : IsAcc α.1 E then
-  ⟨(f α).1 ∩ E, IsClub.inter (hS α α.2 ▸ hκ) (f α).2 <| IsClub.isClub_of_isAcc (hSub α.2) E.2 h⟩
-  else univ_club isLimit_of_mem_S
-
-def F : Iio (succ κ).ord → Club Ϟ := by
-  refine @boundedRec (succ κ).ord (fun _ ↦ Club Ϟ) fun o ih ↦
-    Classical.choose <| exists_club_of_not_isClubGuessing _
-      ((hCont <| restrict ⟨⋂ α, ih α, ?_⟩))
-  apply IsClub.iInter_Iio aleph0_lt_cof_Ϟ
-  · exact (lt_ord.mp o.2).trans hcof
-  · exact fun x ↦ (ih x).isClub
-
--- prefix intersections of `F`
-def F' : Iio (succ κ).ord → Club Ϟ := fun δ ↦ ⟨⋂ α : Iio δ, F α,
-  IsClub.iInter_Iio aleph0_lt_cof_Ϟ ((lt_ord.mp δ.2).trans hcof) fun x ↦ (F x).2⟩
-
-def E : Club Ϟ := ⟨⋂ α : Iio (succ κ).ord, F α, by
-  apply IsClub.iInter_lift aleph0_lt_cof_Ϟ fun i ↦ (F i).2
-  rw [mk_Iio_ordinal, Cardinal.lift_lift, Cardinal.lift_lt, card_ord]
-  exact hcof⟩
-
-def α : S := by
-  have : Set.Nonempty _ := hStat.inter_isClub (E.2.derivedSet aleph0_lt_cof_Ϟ)
-  exact ⟨Classical.choose this, (Classical.choose_spec this).1.1⟩
-
-theorem isAcc_α : IsAcc α E := by
-  unfold α
-  generalize_proofs pf
-  exact (Classical.choose_spec pf).1.2
-
-theorem isAcc_α_F' (β : Iio (succ κ).ord) : IsAcc α (F' β) :=
-  isAcc_α.mono (by exact fun x hx y ⟨z, hz⟩ ↦ hx y ⟨z, hz⟩)
-
-theorem restrict_subset_α (β : Iio (succ κ).ord) : restrict (F' β) α ⊆ f α := by
-  rw [restrict, dif_pos (isAcc_α_F' _)]
-  exact inter_subset_left
-
-theorem restrict_subset_restrict {C D : Club Ϟ} (h : C ⊆ D) (ha : IsAcc α C) :
-    restrict C α ⊆ restrict D α := by
-  unfold restrict
-  rw [dif_pos ha, dif_pos (by exact ha.mono h)]
-  exact inter_subset_inter (fun _ H ↦ H) h
-
-theorem restrict_not_subset (β : Iio (succ κ).ord) :
-    ¬ (restrict (F' β) α).carrier ⊆ (F β).carrier := by
-  rw [F, boundedRec_eq]
-  generalize_proofs _ _ _ pf
-  exact choose_spec pf α
-
-theorem restrict_subset {β γ : Iio (succ κ).ord} (h : β < γ) :
-    (restrict (F' γ) α).carrier ⊆ (F β).carrier := by
-  rw [restrict, dif_pos (isAcc_α_F' γ)]
-  refine inter_subset_right.trans ?_
-  intro x xmem
-  exact xmem (F β).carrier ⟨⟨β, h⟩, rfl⟩
-
-theorem restrict_ssubset_restrict {β γ : Iio (succ κ).ord} (h : β < γ) :
-    restrict (F' γ) α ⊂ restrict (F' β) α := by
-  rw [ssubset_iff_subset_ne]
-  constructor
-  · apply restrict_subset_restrict
-    · exact fun x hx s ⟨z, hz⟩ ↦ hx s ⟨⟨z.1, z.2.trans h⟩, hz⟩
-    · exact isAcc_α_F' _
-  · exact fun heq ↦ restrict_not_subset β (heq ▸ (restrict_subset h))
-
-theorem contradiction : False := by
-  have : Cardinal.lift.{u, u + 1} #(f α).carrier
-      < Cardinal.lift.{u + 1, u} (succ κ).ord.card := by
-    have : #↑(f α).carrier = Cardinal.lift.{u + 1, u} κ := by
-      unfold f
-      generalize_proofs pf
-      convert choose_spec pf
-      exact (hS α α.2).symm
-    rw [card_ord, this, Cardinal.lift_lift, Cardinal.lift_lt]
-    exact lt_succ κ
-  apply not_exists_ssubset_chain_lift (isLimit_ord (hκ.trans (lt_succ κ)).le) this
-  use fun x ↦ restrict (F' x) α
-  constructor
-  · exact restrict_subset_α
-  · exact fun β γ ↦ restrict_ssubset_restrict
-
-end Assumptions
-end ClubGuessing
-
-theorem exists_club_guessing_of_cof {Ϟ : Ordinal} {κ : Cardinal} (hκ : ℵ₀ < κ)
-    (hcof : succ κ < Ϟ.cof) {S : Set Ordinal} (hStat : IsStationary S Ϟ)
-    (hS : ∀ α ∈ S, α.cof = κ) : ∃ f : (α : S) → Club α, IsClubGuessing f Ϟ := by
-  by_contra! h
-  have : ClubGuessing.Assumptions := ⟨Ϟ, κ, hκ, hcof, S ∩ Iio Ϟ, hStat.inter_Iio, inter_subset_right,
-    (fun _ ⟨h, _⟩ ↦ hS _ h), ?_⟩
-  exact ClubGuessing.Assumptions.contradiction
-  · intro f hf
-    let g : (α : S) → (Club α) := fun α ↦ if hα : α.1 ∈ (Iio Ϟ) then (f ⟨α.1, ⟨α.2, hα⟩⟩) else
-      univ_club (aleph0_le_cof.mp (hS α α.2 ▸ hκ).le)
-    refine h g fun C ↦ ?_
-    obtain ⟨δ, hδ⟩ := hf ⟨C.1 ∩ Iio Ϟ, C.2.inter_Iio⟩
-    use ⟨δ.1, δ.2.1⟩
-    unfold g
-    rw [dif_pos δ.2.2]
-    exact hδ.trans inter_subset_left
-
-end ClubGuessing

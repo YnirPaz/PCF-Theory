@@ -1,5 +1,5 @@
-import Mathlib
-import PCF.OrdinalArithmetic
+import Mathlib.SetTheory.Cardinal.Cofinality
+import PCF.Background.Ordinal
 
 universe u v
 
