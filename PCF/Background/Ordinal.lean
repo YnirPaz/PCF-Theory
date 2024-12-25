@@ -80,6 +80,7 @@ theorem boundedRec_eq {l} {C} (H o) :
   simp_rw[boundedRec]
   rw [lt_wf.fix_eq]
 
+/-- There doesn't exist a chain of subsets of `S` of length longer than `#S`. -/
 theorem not_exists_ssubset_chain_lift {α : Type u} {S : Set α} {ℓ : Ordinal.{v}} (hℓ : IsLimit ℓ)
     (h : Cardinal.lift.{v, u} #S < Cardinal.lift.{u, v} ℓ.card) :
     ¬ ∃ f : Iio ℓ → Set α, (∀ o, f o ⊆ S) ∧ (∀ o p, o < p → f p ⊂ f o) := by

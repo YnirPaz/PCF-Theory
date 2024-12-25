@@ -1,5 +1,37 @@
 import PCF.Background.Club
 
+/-
+This file formalizes `theorem 2.17` in the chapter "Cardinal Arithmetic" in the "Handbook
+of set theory."
+
+For `δ` an ordinal, let `S ⊆ δ`, and `f : (α : S) → Club α` a function assigning a club
+to each element of `S`.
+Then `f` is said to be "club guessing" if for every club of `δ`, `C : Club δ`, there is some
+`α ∈ S` such that `f α ⊆ C`. That is, `f` guesses `C` at `α`.
+
+There are many existence results on club guessing sequences. The one we need is `theorem 2.17`:
+  Let `Ϟ` be an ordinal and let `S` be a stationary set below `Ϟ`, such that every
+  element of `S` has the same cofinality `κ`. Further assume `succ κ < Ϟ.cof`.
+  Then there exists a club guessing sequence on `S`.
+
+## definitions
+
+* `IsClubGuessing {S} f γ` says `f : (α : S) → Club α` is a club guessing sequence for `γ`.
+  Unlike in the typical definition, we don't assume `S ⊆ Iio γ`. This makes no mathematical
+  difference but allows us to have `IsClubGuessing f γ` for many different `γ`.
+
+## theorems
+
+* `exists_isClubGuessing_of_cof_uncountable`: Let `Ϟ` be an ordinal and `S` stationary below
+  `Ϟ`, such that `∀ α ∈ S, α.cof = κ`, for a constant `κ` satisfying `succ κ < Ϟ.cof`.
+  Assume also that `ℵ₀ < κ`. Then there exists `f : (α : S) → Club α` that is club guessing
+  below `Ϟ`.
+
+
+TODO: prove the countable case of `exists_isClubGuessing_of_cof_uncountable`. The proof is about
+as difficult, but different from the uncountable case. For details see `exercise 2.18.2`.
+-/
+
 noncomputable section
 open Classical
 
@@ -21,7 +53,8 @@ theorem exists_club_of_not_isClubGuessing {S : Set Ordinal} {γ : Ordinal} (f : 
 section ClubGuessing
 namespace ClubGuessing
 
-private class Assumptions where
+/- The assumptions of the theorem and `hCont`, which says the result is false. -/
+class Assumptions where
   Ϟ : Ordinal.{u}
   κ : Cardinal.{u}
   hκ : ℵ₀ < κ
@@ -46,13 +79,20 @@ theorem aleph0_lt_cof_Ϟ : ℵ₀ < Ϟ.cof := by
       _ < succ κ := lt_succ _
       _ < Ϟ.cof := hcof
 
--- starting guess
+/- We start by picking an arbitrary club of cardinality `κ` below each element of `S`. This
+is out first attempt at a club guessing sequence. -/
 def f : (α : S) → Club α := fun _ ↦ Classical.choose <| exists_club_card isLimit_of_mem_S
 
+/- If `E` is a club that is not guessed by `f`, we can "force" `f` to guess `E` at every
+point in `S` that is an accumulation point of `E`, by intersecting every `f α` with `E`.
+This is the "restriction" of `f` to `E`. -/
 def restrict (E : Club Ϟ) : (α : S) → Club α := fun α ↦ if h : IsAcc α.1 E then
   ⟨(f α).1 ∩ E, IsClub.inter (hS α α.2 ▸ hκ) (f α).2 <| IsClub.isClub_of_isAcc (hSub α.2) E.2 h⟩
   else univ_club isLimit_of_mem_S
 
+/- We assume there is no club guessing sequence, so `f ↾ E₀` is not club guessing. We choose
+a club `E₁` that `f ↾ E₀` doesn't guess, and look at `f ↾ (E₀ ∩ E₁)`. Let `E₂` be a club this
+function doesn't guess. Using `succ κ < Ϟ.cof`, we can do this `succ κ` many times. -/
 def F : Iio (succ κ).ord → Club Ϟ := by
   refine @boundedRec (succ κ).ord (fun _ ↦ Club Ϟ) fun o ih ↦
     Classical.choose <| exists_club_of_not_isClubGuessing _
@@ -61,15 +101,17 @@ def F : Iio (succ κ).ord → Club Ϟ := by
   · exact (lt_ord.mp o.2).trans hcof
   · exact fun x ↦ (ih x).isClub
 
--- prefix intersections of `F`
+/- Prefix intersections of `F` for convenience. -/
 def F' : Iio (succ κ).ord → Club Ϟ := fun δ ↦ ⟨⋂ α : Iio δ, F α,
   IsClub.iInter_Iio aleph0_lt_cof_Ϟ ((lt_ord.mp δ.2).trans hcof) fun x ↦ (F x).2⟩
 
+/- Using `succ κ < Ϟ.cof` we can intersect all `E_α` for `α < succ κ`. -/
 def E : Club Ϟ := ⟨⋂ α : Iio (succ κ).ord, F α, by
   apply IsClub.iInter_lift aleph0_lt_cof_Ϟ fun i ↦ (F i).2
   rw [mk_Iio_ordinal, Cardinal.lift_lift, Cardinal.lift_lt, card_ord]
   exact hcof⟩
 
+/- E is a club and `S` is stationary, so there is some `α ∈ S ∩ E'`. -/
 def α : S := by
   have : Set.Nonempty _ := hStat.inter_isClub (E.2.derivedSet aleph0_lt_cof_Ϟ)
   exact ⟨Classical.choose this, (Classical.choose_spec this).1.1⟩
@@ -105,6 +147,10 @@ theorem restrict_subset {β γ : Iio (succ κ).ord} (h : β < γ) :
   intro x xmem
   exact xmem (F β).carrier ⟨⟨β, h⟩, rfl⟩
 
+/- At each of the `succ κ` steps, when we chose a club `C` that is not guessed so far,
+we shrunk the club we started with below `α`, `f α`.
+In fact we shrunk the club below every element of `S ∩ C'`, because no club guessed `C`.
+ -/
 theorem restrict_ssubset_restrict {β γ : Iio (succ κ).ord} (h : β < γ) :
     restrict (F' γ) α ⊂ restrict (F' β) α := by
   rw [ssubset_iff_subset_ne]
@@ -114,6 +160,7 @@ theorem restrict_ssubset_restrict {β γ : Iio (succ κ).ord} (h : β < γ) :
     · exact isAcc_α_F' _
   · exact fun heq ↦ restrict_not_subset β (heq ▸ (restrict_subset h))
 
+/- `f α` has cardinality `κ`, but we removed elements from it `succ κ` many times. -/
 theorem contradiction : False := by
   have : Cardinal.lift.{u, u + 1} #(f α).carrier
       < Cardinal.lift.{u + 1, u} (succ κ).ord.card := by
@@ -133,12 +180,13 @@ theorem contradiction : False := by
 end Assumptions
 end ClubGuessing
 
-theorem exists_club_guessing_of_cof {Ϟ : Ordinal} {κ : Cardinal} (hκ : ℵ₀ < κ)
+-- TODO: prove the countable version, where κ = ℵ₀.
+theorem exists_isClubGuessing_of_cof_uncountable {Ϟ : Ordinal} {κ : Cardinal} (hκ : ℵ₀ < κ)
     (hcof : succ κ < Ϟ.cof) {S : Set Ordinal} (hStat : IsStationary S Ϟ)
     (hS : ∀ α ∈ S, α.cof = κ) : ∃ f : (α : S) → Club α, IsClubGuessing f Ϟ := by
   by_contra! h
-  have : ClubGuessing.Assumptions := ⟨Ϟ, κ, hκ, hcof, S ∩ Iio Ϟ, hStat.inter_Iio, inter_subset_right,
-    (fun _ ⟨h, _⟩ ↦ hS _ h), ?_⟩
+  have : ClubGuessing.Assumptions := ⟨Ϟ, κ, hκ, hcof, S ∩ Iio Ϟ, hStat.inter_Iio,
+    inter_subset_right, (fun _ ⟨h, _⟩ ↦ hS _ h), ?_⟩
   exact ClubGuessing.Assumptions.contradiction
   · intro f hf
     let g : (α : S) → (Club α) := fun α ↦ if hα : α.1 ∈ (Iio Ϟ) then (f ⟨α.1, ⟨α.2, hα⟩⟩) else
