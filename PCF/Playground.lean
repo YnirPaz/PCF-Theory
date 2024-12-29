@@ -28,7 +28,7 @@ end SIdealBasic
 
 namespace Order
 
-/- Not sure if these definitions and `<(f, g)` notations are helpful or obfuscating
+/- Not sure if these definitions and `<(f, g)` notations are helpful or obfuscating.
  `lt_SIdeal` etc. can also just be defined directly. -/
 def ltSet {L A : Type*} [LinearOrder L] (f g : A → L) : Set A :=
   {x | f x < g x}
