@@ -11,9 +11,9 @@ One of the natural ways for the power function to be small below a cardinal $\ka
 
 In 1978 Shelah introduced Possible Cofinality Theory (PCF theory), which he used to show that $\aleph_{\omega + 1}$ is not a Jónsson cardinal, an open problem at the time. PCF theory has since found applications in many areas around set theory, including model theory, infinitary logic and general topology, but in particular it has hugely improved our understanding of cardinal arithmetic. Its most famous consequence is the following surprising result:
 
-$$
+```math
   \text{If } \aleph_\omega \text{ is a strong limit cardinal, then } 2 ^ {\aleph_ \omega} < \aleph_ {\omega_4}.
-$$
+```
 
 Whether the $4$ in $\aleph_ {\omega_4}$ is an artifact of the proof or the best possible bound is a major open problem. In the language of PCF theory, this is the question of whether (in certain sets of cardinals $A$) the known bound $|\text{pcf}(A)| < |A|^{+4}$ is tight, or if $|A|^{+4}$ can be reduced. Currently it is not even known if $|\text{pcf}(A)| \ne |A|$ is possible.
 
