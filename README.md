@@ -42,3 +42,5 @@ Once the foundations of the project solidify there will hopefully be many indepe
 **Background/** contains files with theorems not specific to PCF theory.
 
 **ClubGuessing.lean** proves the basic club guessing principles needed for PCF theory. These are theorem 2.17 and the following exercise in the Handbook.
+
+**Playground.lean** is where possible new definitions are tested.
