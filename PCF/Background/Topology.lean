@@ -82,7 +82,7 @@ theorem mk_derivedSet_le (S : Set Ordinal) : #(derivedSet S) ≤ #S := by
   unfold f at hab
   rw [dif_pos hemp.1, dif_pos hemp.2, Option.some_inj] at hab
   by_contra! h
-  sorry -- wlog bug, should be fixed soon
+  sorry -- wlog bug which should be fixed soon. see https://leanprover.zulipchat.com/#narrow/channel/270676-lean4/topic/WLOG.20bug.3F
   /-
   wlog altb : a < b
   · exact this S hS (And.comm.mp hemp) hab.symm h.symm
