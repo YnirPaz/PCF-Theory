@@ -87,7 +87,7 @@ private theorem eq_refl {L A : Type*} [LinearOrder L] {I : SIdeal A} (f : A → 
   simp
   apply Ideal.bot_mem
 
-private theorem le_trans {L A : Type*} [Li : LinearOrder L] {I : SIdeal A} {f g h : A → L}
+private theorem lt_trans {L A : Type*} [LinearOrder L] {I : SIdeal A} {f g h : A → L}
     (hfg : f <I g) (hgh : g <I h) : f <I h :=
   Trans.trans hfg hgh
 
@@ -103,45 +103,38 @@ def Set.ExactUpperBound {α : Type*} (le lt : α → α → Prop) (A : Set α) (
   LeastUpperBound le A a ∧ (∀ p, lt p a → ∃ x ∈ A, le p x)
 
 
-def Ordinal.UpperBound_SIdeal {A : Type*} (I : SIdeal A) (S : Set (A → Ordinal))
-    (h : A → Ordinal) : Prop :=
+def Set.UpperBound_SIdeal {A L : Type*} [LinearOrder L] (I : SIdeal A) (S : Set (A → L))
+    (h : A → L) : Prop :=
   UpperBound (· ≤I ·) S h
 
-def Ordinal.LeastUpperBound_SIdeal {A : Type*} (I : SIdeal A) (S : Set (A → Ordinal))
-    (h : A → Ordinal) : Prop :=
+def Set.LeastUpperBound_SIdeal {A L : Type*} [LinearOrder L] (I : SIdeal A) (S : Set (A → L))
+    (h : A → L) : Prop :=
   LeastUpperBound (· ≤I ·) S h
 
-def Ordinal.ExactUpperBound_SIdeal {A : Type*} (I : SIdeal A) (S : Set (A → Ordinal))
-    (h : A → Ordinal) : Prop :=
+def Set.ExactUpperBound_SIdeal {A L : Type*} [LinearOrder L] (I : SIdeal A) (S : Set (A → L))
+    (h : A → L) : Prop :=
   ExactUpperBound (· ≤I ·) (· <I ·) S h
 
-structure Order.FunsBelow {L A : Type*} [LinearOrder L] (h : A → L) where
-  toFun : A → L
-  lt : ∀ a, toFun a < h a
--- SetLike and FunLike for ↑
-
-instance instFunLikeFunsBelow {L A : Type*} [LinearOrder L] {h : A → L} :
-    FunLike (Order.FunsBelow h) A L where
-  coe := fun f ↦ f.toFun
-  coe_injective' := fun ⟨_, _⟩ ⟨_, _⟩ _ ↦ by simp_all only
-
-#check Order.cof
+def Order.FunsBelow {L A : Type*} [LinearOrder L] (h : A → L) : Set (A → L) :=
+  {f : A → L | ∀ a, f a < h a}
 
 /- An order has `true cofinality` if it has a linearly ordered cofinal subset. -/
 def Order.hasTCF {α : Type*} (r : α → α → Prop) : Prop :=
   ∃ A : Set α, (∀ a ∈ A, ∀ b ∈ A, r a b ∨ r b a) ∧ (∀ x : α, ∃ y ∈ A, r x y)
 
-def Ordinal.Prod (A : Set Ordinal) := @Order.FunsBelow Ordinal A _ Subtype.val
+def Ordinal.Prod (A : Set Ordinal) : Set (A → Ordinal) :=
+  @Order.FunsBelow Ordinal A _ Subtype.val
 
-variable {A : Set Ordinal}
-
-instance : FunLike (Ordinal.Prod A) A Ordinal := instFunLikeFunsBelow
+def Order.SIdeal_cof {L A : Type*} [LinearOrder L] (S : Set (A → L)) (I : SIdeal A) :=
+  @Order.cof S (fun f g ↦ f.1 ≤I g.1) -- is there a way to make `f.1 ≤I g.1` work?
 
 /- The cofinality an ideal `I` on a set of ordinals `A` induces on ∏ A. -/
 def Ordinal.SIdeal_cof (A : Set Ordinal) (I : SIdeal A) :=
-  @Order.cof (Ordinal.Prod A) (· ≤I ·)
+  Order.SIdeal_cof (Ordinal.Prod A) I
+
 
 /- The `pcf` (Possible Cofinalities) of a set of ordinals `A` is the set of true cofinalities
 that `∏ A` attains with any proper ideal on `A`. -/
 def Ordinal.pcf (A : Set Ordinal) : Set Cardinal :=
-  {SIdeal_cof A I | (I : SIdeal A) (_hI : Set.univ ∉ I) (_hTCF : @hasTCF (Prod A) (· ≤I ·))}
+  {SIdeal_cof A I | (I : SIdeal A) (_hI : Set.univ ∉ I)
+    (_hTCF : @hasTCF (Prod A) (fun f g ↦ f.1 ≤I g.1))}
