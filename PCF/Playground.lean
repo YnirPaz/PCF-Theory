@@ -125,16 +125,19 @@ def Order.hasTCF {α : Type*} (r : α → α → Prop) : Prop :=
 def Ordinal.Prod (A : Set Ordinal) : Set (A → Ordinal) :=
   @Order.FunsBelow Ordinal A _ Subtype.val
 
+instance {A : Set Ordinal} : FunLike (Ordinal.Prod A) A Ordinal where
+  coe := fun f ↦ f.1
+  coe_injective' := by
+    aesop
+
 def Order.SIdeal_cof {L A : Type*} [LinearOrder L] (S : Set (A → L)) (I : SIdeal A) :=
-  @Order.cof S (fun f g ↦ f.1 ≤I g.1) -- is there a way to make `f.1 ≤I g.1` work?
+  @Order.cof S (fun f g ↦ f.1 ≤I g.1)
 
 /- The cofinality an ideal `I` on a set of ordinals `A` induces on ∏ A. -/
-def Ordinal.SIdeal_cof (A : Set Ordinal) (I : SIdeal A) :=
+def Ordinal.SIdeal_cof_Prod (A : Set Ordinal) (I : SIdeal A) :=
   Order.SIdeal_cof (Ordinal.Prod A) I
-
 
 /- The `pcf` (Possible Cofinalities) of a set of ordinals `A` is the set of true cofinalities
 that `∏ A` attains with any proper ideal on `A`. -/
 def Ordinal.pcf (A : Set Ordinal) : Set Cardinal :=
-  {SIdeal_cof A I | (I : SIdeal A) (_hI : Set.univ ∉ I)
-    (_hTCF : @hasTCF (Prod A) (fun f g ↦ f.1 ≤I g.1))}
+  {SIdeal_cof_Prod A I | (I : SIdeal A) (_hI : Set.univ ∉ I) (_hTCF : @hasTCF (Prod A) (· ≤I ·))}
