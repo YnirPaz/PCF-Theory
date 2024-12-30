@@ -2,6 +2,8 @@ import Mathlib
 
 /- Current attempts at defining the basic objects of study. Everything very subject to change. -/
 
+noncomputable section
+
 open Order Set
 
 def SIdeal (α : Type*) := Order.Ideal (Set α)
@@ -29,7 +31,7 @@ end SIdealBasic
 namespace Order
 
 /- Not sure if these definitions and `<(f, g)` notations are helpful or obfuscating.
- `lt_SIdeal` etc. can also just be defined directly. -/
+`lt_SIdeal` etc. can also just be defined directly. -/
 def ltSet {L A : Type*} [LinearOrder L] (f g : A → L) : Set A :=
   {x | f x < g x}
 
@@ -118,5 +120,28 @@ structure Order.FunsBelow {L A : Type*} [LinearOrder L] (h : A → L) where
   lt : ∀ a, toFun a < h a
 -- SetLike and FunLike for ↑
 
+instance instFunLikeFunsBelow {L A : Type*} [LinearOrder L] {h : A → L} :
+    FunLike (Order.FunsBelow h) A L where
+  coe := fun f ↦ f.toFun
+  coe_injective' := fun ⟨_, _⟩ ⟨_, _⟩ _ ↦ by simp_all only
+
+#check Order.cof
+
+/- An order has `true cofinality` if it has a linearly ordered cofinal subset. -/
+def Order.hasTCF {α : Type*} (r : α → α → Prop) : Prop :=
+  ∃ A : Set α, (∀ a ∈ A, ∀ b ∈ A, r a b ∨ r b a) ∧ (∀ x : α, ∃ y ∈ A, r x y)
 
 def Ordinal.Prod (A : Set Ordinal) := @Order.FunsBelow Ordinal A _ Subtype.val
+
+variable {A : Set Ordinal}
+
+instance : FunLike (Ordinal.Prod A) A Ordinal := instFunLikeFunsBelow
+
+/- The cofinality an ideal `I` on a set of ordinals `A` induces on ∏ A. -/
+def Ordinal.SIdeal_cof (A : Set Ordinal) (I : SIdeal A) :=
+  @Order.cof (Ordinal.Prod A) (· ≤I ·)
+
+/- The `pcf` (Possible Cofinalities) of a set of ordinals `A` is the set of true cofinalities
+that `∏ A` attains with any proper ideal on `A`. -/
+def Ordinal.pcf (A : Set Ordinal) : Set Cardinal :=
+  {SIdeal_cof A I | (I : SIdeal A) (_hI : Set.univ ∉ I) (_hTCF : @hasTCF (Prod A) (· ≤I ·))}
