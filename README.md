@@ -15,7 +15,7 @@ $$
   \text{If } \aleph_\omega \text{ is a strong limit cardinal, then } 2 ^ {\aleph_ \omega} < \aleph_ {\omega_4}.
 $$
 
-Whether the $4$ in $\aleph_ {\omega_4}$ is an artifact of the proof or the best possible bound is a major open problem. In the language of PCF theory, this is the question of whether (in certain sets of cardinals $A$) the known bound $|\text{pcf}(A)| < |A|^{+4}$ is tight, or if $|A|^{+4}$ can be reduced. Currently it is not even known if $|\text{pcf}(A)| \ne |A|$ is possible.
+Whether the $4$ in $\aleph_ {\omega_4}$ is an artifact of the proof or the best possible bound is a major open problem. In the language of PCF theory, this is the question of whether (in certain sets of cardinals $A$) the known bound $\left|\text{pcf}(A)\right| < \left|A\right|^{+4}$ is tight, or if $\left|A\right|^{+4}$ can be reduced. Currently it is not even known if $\left|\text{pcf}(A)\right| \ne \left|A\right|$ is possible.
 
 This project aims to formalize PCF theory in lean, following article 14, "Cardinal Arithmetic", in the "Handbook of Set Theory".
 This article is also a great resource for anyone who wants to learn more about this topic, starting with the very basics.
