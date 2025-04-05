@@ -19,6 +19,8 @@ section SIdealBasic
 
 variable {α : Type*} {I : SIdeal α} {a b : Set α}
 
+theorem SIdeal.empty_mem : ∅ ∈ I := sorry
+
 theorem SIdeal.subset_mem (ha : b ∈ I) (h : a ⊆ b) : a ∈ I := I.lower h ha
 
 theorem SIdeal.union_mem (ha : a ∈ I) (hb : b ∈ I) : a ∪ b ∈ I := by
@@ -137,7 +139,35 @@ def Order.SIdeal_cof {L A : Type*} [LinearOrder L] (S : Set (A → L)) (I : SIde
 def Ordinal.SIdeal_cof_Prod (A : Set Ordinal) (I : SIdeal A) :=
   Order.SIdeal_cof (Ordinal.Prod A) I
 
+/- `C` is cofinal in `B` -/
+def Order.IsCofinal_SIdeal {L A : Type*} [LinearOrder L] (B : Set (A → L)) (C : Set B)
+    (I : SIdeal A) : Prop :=
+  @IsCofinal B ⟨fun f g ↦ f.1 ≤I g.1⟩ C
+
+example {L A : Type*} [LinearOrder L] (B : Set (A → L)) (C : Set B) (I : SIdeal A)
+    (h : IsCofinal_SIdeal B C I) (g : B) : ∃ f ∈ C, g.1 ≤I f.1 := by
+  exact h g
+
 /- The `pcf` (Possible Cofinalities) of a set of ordinals `A` is the set of true cofinalities
 that `∏ A` attains with any proper ideal on `A`. -/
 def Ordinal.pcf (A : Set Ordinal) : Set Cardinal :=
   {SIdeal_cof_Prod A I | (I : SIdeal A) (_hI : Set.univ ∉ I) (_hTCF : @hasTCF (Prod A) (· ≤I ·))}
+
+
+-- alt cofinality
+/-
+def Order.cof' (α : Type*) [Preorder α] : Cardinal :=
+  ⨅ s : { s : Set α // IsCofinal s }, #s.1
+
+def instPreorderSIdeal {A L : Type*} [LinearOrder L] (I : SIdeal A) : Preorder (A → L) where
+    le := (· ≤I ·)
+    le_refl := by
+      intro f
+      dsimp [LE.le, le_SIdeal, ltSet]
+      simp_all only [lt_self_iff_false, setOf_false, I.empty_mem]
+    le_trans := sorry
+    lt_iff_le_not_le := sorry
+
+def Order.SIdeal_cof' {L A : Type*} [LinearOrder L] (S : Set (A → L)) (I : SIdeal A) : Cardinal :=
+  @cof' S (@Subtype.preorder (A → L) (instPreorderSIdeal I) S)
+-/

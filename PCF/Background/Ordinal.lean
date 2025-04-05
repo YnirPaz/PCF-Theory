@@ -1,3 +1,4 @@
+import Mathlib
 import Mathlib.SetTheory.Ordinal.Arithmetic
 
 noncomputable section
@@ -52,10 +53,11 @@ theorem strictMono_of_succ_lt_omega0 {α : Type*} [Preorder α] (f : Iio ω → 
 /-- The lift of a supremum is the supremum of the lifts. -/
 theorem lift_sSup {s : Set Ordinal} (hs : BddAbove s) :
     lift.{u} (sSup s) = sSup (lift.{u} '' s) := by
-  apply ((le_csSup_iff' (bddAbove_image.{_,u} hs _)).2 fun c hc => _).antisymm (csSup_le' _)
+  apply ((le_csSup_iff' (Ordinal.bddAbove_image.{_,u} hs _)).2 fun c hc => _).antisymm (csSup_le' _)
   · intro c hc
     by_contra h
-    obtain ⟨d, rfl⟩ := Ordinal.mem_range_lift_of_le (not_le.1 h).le
+    have := (not_le.1 h).le
+    obtain ⟨d, rfl⟩ := mem_range_lift_of_le this
     simp_rw [lift_le] at h hc
     rw [csSup_le_iff' hs] at h
     exact h fun a ha => lift_le.1 <| hc (mem_image_of_mem _ ha)
